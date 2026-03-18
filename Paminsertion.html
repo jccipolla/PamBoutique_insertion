@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pam Boutique - Import Asynchrone</title>
+    <!-- Tailwind CSS pour le design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React pour la logique -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+        .loader { border-top-color: #4f46e5; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Style chic pour Pam Boutique */
+        .pam-boutique-title { font-family: 'Georgia', serif; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body class="bg-stone-50 text-gray-800 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Icônes SVG intégrées ---
+        const IconSearch = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+        const IconPlus = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconSave = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
+        const IconCheck = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const IconAlert = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+        const IconRefresh = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 0 20.49 15"/></svg>;
+        const IconX = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const IconImage = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
+        const IconSettings = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+        const IconUser = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const IconChevronDown = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
+        const IconCamera = ({className="w-6 h-6"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
+
+        // Logo Officiel Pam Boutique
+        const LogoPam = ({ className = "w-16 h-16" }) => (
+            <img 
+                src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" 
+                alt="Pam Boutique" 
+                className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`}
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true"; }}
+            />
+        );
+
+        // Constantes Catégories et Tailles
+        const CATEGORIES_DISPONIBLES = ['Vêtements', 'Vestes & Manteaux', 'Pulls & Gilets', 'Robes', 'Tops & T-shirts', 'Pantalons & Jeans', 'Accessoires'];
+        const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '34', '36', '38', '40', '42', '44', '46', '48'];
+        const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Imprimé Léo', 'Camel', 'Kaki', 'Marine', 'Doré', 'Argenté', 'Multicolore', 'Marron', 'Bordeaux'];
+
+        // Code d'installation pour le script Google (Ultra robuste)
+        const appScriptCode = `function doPost(e) {
+  try {
+    var sheet = SpreadsheetApp.openById("1t4lZS7eza61t493shbYnu70NBOHG2w1IfGBFfyqYq4g").getActiveSheet();
+    var payload = JSON.parse(e.postData.contents);
+    
+    // Initialisation si fichier complètement vide
+    if (sheet.getLastRow() === 0) {
+      var initialHeaders = Object.keys(Array.isArray(payload) ? payload[0] : payload);
+      sheet.getRange(1, 1, 1, initialHeaders.length).setValues([initialHeaders]);
+    }
+    
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var items = Array.isArray(payload) ? payload : [payload];
+    
+    // Ajout dynamique de toutes les colonnes manquantes envoyées par React (y compris Photo Interne)
+    var addedCols = false;
+    for (var k = 0; k < items.length; k++) {
+       var keys = Object.keys(items[k]);
+       for (var c = 0; c < keys.length; c++) {
+          if (headers.indexOf(keys[c]) === -1) {
+             sheet.getRange(1, headers.length + 1).setValue(keys[c]);
+             headers.push(keys[c]);
+             addedCols = true;
+          }
+       }
+    }
+
+    var dataRange = sheet.getDataRange().getValues();
+    
+    // Chercher la vraie dernière ligne pour éviter le trou de 1000 lignes
+    var realLastRow = 1;
+    for (var l = dataRange.length - 1; l >= 0; l--) {
+        if (dataRange[l].join("").trim() !== "") {
+            realLastRow = l + 1;
+            break;
+        }
+    }
+    
+    for (var k = 0; k < items.length; k++) {
+        var data = items[k];
+        var handleIdx = headers.indexOf("Handle");
+        var option1Idx = headers.indexOf("Option1 Value");
+        var option2Idx = headers.indexOf("Option2 Value");
+        var rowIndex = -1;
+        
+        if (handleIdx > -1) {
+          for (var r = 1; r < realLastRow; r++) {
+            if (!dataRange[r]) continue;
+            var matchHandle = dataRange[r][handleIdx] === data["Handle"];
+            
+            var matchSize = true;
+            if (option1Idx > -1 && data["Option1 Value"]) {
+               matchSize = String(dataRange[r][option1Idx]).toLowerCase() === String(data["Option1 Value"]).toLowerCase();
+            }
+
+            var matchColor = true;
+            if (option2Idx > -1 && data["Option2 Value"]) {
+               matchColor = String(dataRange[r][option2Idx]).toLowerCase() === String(data["Option2 Value"]).toLowerCase();
+            }
+            
+            if (matchHandle && matchSize && matchColor) {
+              rowIndex = r + 1;
+              break;
+            }
+          }
+        }
+        
+        var rowData = new Array(headers.length).fill("");
+        for (var i = 0; i < headers.length; i++) {
+          if (data[headers[i]] !== undefined && data[headers[i]] !== "") {
+            rowData[i] = data[headers[i]];
+          } else if (rowIndex > -1 && dataRange[rowIndex - 1]) {
+            rowData[i] = dataRange[rowIndex - 1][i];
+          }
+        }
+        
+        if (rowIndex > -1) {
+          sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+          dataRange[rowIndex - 1] = rowData; // Garde la mémoire à jour
+        } else {
+          realLastRow++;
+          sheet.getRange(realLastRow, 1, 1, rowData.length).setValues([rowData]);
+          dataRange[realLastRow - 1] = rowData; 
+        }
+    }
+    return ContentService.createTextOutput(JSON.stringify({"status": "success"})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  var sheet = SpreadsheetApp.openById("1t4lZS7eza61t493shbYnu70NBOHG2w1IfGBFfyqYq4g").getActiveSheet();
+  if (sheet.getLastRow() === 0) return ContentService.createTextOutput("[]").setMimeType(ContentService.MimeType.JSON);
+  
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var rows = [];
+  
+  for(var i=1; i<data.length; i++) {
+    if (data[i].join("").trim() === "") continue; 
+    var obj = {};
+    for(var j=0; j<headers.length; j++) {
+      obj[headers[j]] = data[i][j];
+    }
+    rows.push(obj);
+  }
+  return ContentService.createTextOutput(JSON.stringify(rows)).setMimeType(ContentService.MimeType.JSON);
+}`;
+
+        function App() {
+            const [webhookUrl] = useState('https://script.google.com/macros/s/AKfycbwCUNmNcoikoxMIaPnJwx_R1knx5aYn4pBpg6rXhAR4R15y_w641NGKbl7MRa93nvVD/exec');
+            const [isConfigured] = useState(true);
+            
+            const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
+            const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('pam_username'));
+            
+            const [showColorDropdown, setShowColorDropdown] = useState(false);
+
+            const [fileData, setFileData] = useState([]);
+            const [isLoading, setIsLoading] = useState(false);
+            const [isSaving, setIsSaving] = useState(false);
+            const [logs, setLogs] = useState([]);
+            
+            // Formulaire exhaustif Shopify + Photo interne
+            const [formData, setFormData] = useState({
+                Handle: '',
+                Title: '',
+                Body: '',
+                Type: '',
+                Tags: '',
+                'Variant SKU': '',
+                'Variant Price': '',
+                'Variant Compare At Price': '',
+                CostPerItem: '',
+                Grams: '',
+                ImageSrc: '',
+                category: [],
+                colors: [],
+                sizes: [],
+                quantities: {},
+                internalPhoto: '' // Nouvelle propriété pour la photo
+            });
+
+            const [formStatus, setFormStatus] = useState({ type: '', message: '' });
+            const [mode, setMode] = useState('new'); 
+            const [showModal, setShowModal] = useState(false);
+            const [showSettingsModal, setShowSettingsModal] = useState(false);
+            const [searchResults, setSearchResults] = useState([]);
+            const [selectedVariantsGroup, setSelectedVariantsGroup] = useState([]);
+
+            useEffect(() => {
+                if (isConfigured && webhookUrl && isLoggedIn) fetchSheetData();
+            }, [isConfigured, isLoggedIn]);
+
+            const fetchSheetData = async () => {
+                setIsLoading(true);
+                try {
+                    const response = await fetch(webhookUrl);
+                    const textData = await response.text();
+                    let data;
+                    try { data = JSON.parse(textData); } 
+                    catch (parseError) { throw new Error("Erreur de droits d'accès (Permissions Google)."); }
+                    
+                    if (Array.isArray(data)) {
+                        setFileData(data);
+                        addLog(`Connecté : ${data.length} variantes synchronisées.`, 'success');
+                    } else { throw new Error("Format de données incorrect."); }
+                } catch (error) {
+                    if (error.message.includes("droits d'accès")) {
+                        addLog(`Erreur : L'accès est bloqué. Mettez à jour Apps Script avec "Exécuter en tant que : MOI".`, 'error');
+                        setShowSettingsModal(true);
+                    } else { addLog(`Erreur de connexion avec le serveur.`, 'error'); }
+                }
+                setIsLoading(false);
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+                setFormStatus({ type: '', message: '' });
+            };
+
+            const handleCheckboxChange = (type, value) => {
+                setFormData(prev => {
+                    const list = prev[type];
+                    const newList = list.includes(value) ? list.filter(item => item !== value) : [...list, value];
+                    return { ...prev, [type]: newList };
+                });
+            };
+
+            // Compresse l'image pour éviter de faire planter Google Sheets
+            const handlePhotoCapture = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        // On limite fortement la taille pour ne pas exploser la limite des cellules Sheets (50k chars)
+                        const MAX_WIDTH = 400; 
+                        const MAX_HEIGHT = 400;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        // Qualité 0.6 pour réduire la taille du texte Base64
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                        
+                        setFormData(prev => ({ ...prev, internalPhoto: dataUrl }));
+                    };
+                };
+            };
+
+            const handleSearch = (e) => {
+                if (e) e.preventDefault();
+                if (!formData.Handle) {
+                    setFormStatus({ type: 'error', message: 'Veuillez entrer un Handle pour rechercher.' });
+                    return;
+                }
+
+                const normalize = (str) => (str || '').toString().toLowerCase().replace(/[\s-]/g, '');
+                const query = normalize(formData.Handle);
+
+                const matches = fileData.filter(item => 
+                    normalize(item.Handle).includes(query) || normalize(item.Title).includes(query)
+                );
+
+                const groups = {};
+                matches.forEach(item => {
+                    if (!groups[item.Handle]) groups[item.Handle] = [];
+                    groups[item.Handle].push(item);
+                });
+                const uniqueHandles = Object.keys(groups).map(handle => groups[handle]);
+
+                setSearchResults(uniqueHandles);
+                setSelectedVariantsGroup(uniqueHandles.length === 1 ? uniqueHandles[0] : null);
+                setShowModal(true);
+            };
+
+            const confirmSearch = () => {
+                if (selectedVariantsGroup && selectedVariantsGroup.length > 0) {
+                    const firstVariant = selectedVariantsGroup[0];
+                    const existingSizes = new Set();
+                    const existingColors = new Set();
+                    const qtyMap = {};
+                    
+                    selectedVariantsGroup.forEach(v => {
+                        const size = v['Option1 Value'] || 'TU';
+                        const color = v['Option2 Value'] || 'Défaut';
+                        if (v['Option1 Value']) existingSizes.add(size);
+                        if (v['Option2 Value']) existingColors.add(color);
+                        qtyMap[`${size}-${color}`] = v['Variant Inventory Qty'] || '';
+                    });
+
+                    setFormData({
+                        Handle: firstVariant.Handle || '',
+                        Title: firstVariant.Title || '',
+                        Body: firstVariant['Body (HTML)'] || '',
+                        Type: firstVariant['Type'] || '',
+                        Tags: firstVariant['Tags'] || '',
+                        'Variant SKU': firstVariant['Variant SKU'] ? firstVariant['Variant SKU'].split('-')[0] : '', 
+                        'Variant Price': firstVariant['Variant Price'] || '',
+                        'Variant Compare At Price': firstVariant['Variant Compare At Price'] || '',
+                        CostPerItem: firstVariant['Cost per item'] || '',
+                        Grams: firstVariant['Variant Grams'] || '',
+                        ImageSrc: firstVariant['Image Src'] || '',
+                        category: firstVariant['Product Category'] ? firstVariant['Product Category'].split('>').map(c => c.trim()) : [],
+                        colors: Array.from(existingColors),
+                        sizes: Array.from(existingSizes),
+                        quantities: qtyMap,
+                        internalPhoto: firstVariant['Photo Interne'] || ''
+                    });
+                    setMode('edit');
+                    setFormStatus({ type: 'success', message: 'Produit complet chargé depuis le Drive.' });
+                } else {
+                    setFormData(prev => ({
+                        Handle: prev.Handle.toLowerCase().replace(/\s+/g, '-'),
+                        Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, internalPhoto: ''
+                    }));
+                    setMode('new');
+                    setFormStatus({ type: 'info', message: 'Nouveau produit (création en cours).' });
+                }
+                setShowModal(false);
+            };
+
+            const addLog = (message, type = 'info') => {
+                setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev]);
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!formData.Handle || !formData.Title || !formData['Variant Price']) {
+                    setFormStatus({ type: 'error', message: 'Handle, Titre et Prix sont obligatoires.' });
+                    return;
+                }
+                if (formData.sizes.length === 0 || formData.colors.length === 0) {
+                    setFormStatus({ type: 'error', message: 'Veuillez sélectionner au moins une taille et une couleur.' });
+                    return;
+                }
+
+                setIsSaving(true);
+                
+                try {
+                    const payloads = [];
+                    const sizesToProcess = formData.sizes.length > 0 ? formData.sizes : ['TU'];
+                    const colorsToProcess = formData.colors.length > 0 ? formData.colors : ['Défaut'];
+                    let isFirstRow = true;
+
+                    sizesToProcess.forEach(size => {
+                        colorsToProcess.forEach(color => {
+                            const qtyKey = `${size}-${color}`;
+                            const skuSuffix = (sizesToProcess.length > 1 || colorsToProcess.length > 1) ? `-${size}-${color.replace(/\s+/g, '').toUpperCase()}` : '';
+                            
+                            // Construction 100% Shopify Compliant
+                            payloads.push({
+                                'Handle': formData.Handle,
+                                'Title': isFirstRow ? formData.Title : '', 
+                                'Body (HTML)': isFirstRow ? formData.Body : '',
+                                'Vendor': isFirstRow ? 'PAM Boutique' : '',
+                                'Product Category': isFirstRow ? formData.category.join(' > ') : '',
+                                'Type': isFirstRow ? formData.Type : '',
+                                'Tags': isFirstRow ? formData.Tags : '',
+                                'Published': isFirstRow ? 'TRUE' : '',
+                                'Option1 Name': 'Taille',
+                                'Option1 Value': size,
+                                'Option2 Name': 'Couleur',
+                                'Option2 Value': color,
+                                'Option2 Linked To': 'product.metafields.shopify.color-pattern',
+                                'Variant SKU': formData['Variant SKU'] ? `${formData['Variant SKU']}${skuSuffix}` : '',
+                                'Variant Grams': formData.Grams,
+                                'Variant Inventory Tracker': 'shopify',
+                                'Variant Inventory Policy': 'deny',
+                                'Variant Fulfillment Service': 'manual',
+                                'Variant Price': formData['Variant Price'],
+                                'Variant Compare At Price': formData['Variant Compare At Price'],
+                                'Variant Requires Shipping': 'TRUE',
+                                'Variant Taxable': 'TRUE',
+                                'Variant Weight Unit': 'kg',
+                                'Image Src': isFirstRow ? formData.ImageSrc : '',
+                                'Cost per item': formData.CostPerItem,
+                                'Status': isFirstRow ? 'active' : '',
+                                'Variant Inventory Qty': formData.quantities[qtyKey] || '0',
+                                'Opérateur': userName,
+                                'Photo Interne': isFirstRow ? formData.internalPhoto : '' // Injecté dans la 1ere ligne
+                            });
+                            isFirstRow = false;
+                        });
+                    });
+
+                    await fetch(webhookUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(payloads)
+                    });
+                    
+                    addLog(`Enregistré dans le Drive : ${formData.Handle} (${payloads.length} variante(s)) par ${userName}`, 'success');
+                    setFormStatus({ type: 'success', message: 'Ajout réussi au Google Sheet !' });
+                    
+                    if (mode === 'new') {
+                        setFileData(prev => [...prev, ...payloads]);
+                        handleReset();
+                    } else {
+                        fetchSheetData();
+                    }
+                    
+                } catch (error) {
+                    addLog(`Erreur de sauvegarde`, 'error');
+                    setFormStatus({ type: 'error', message: 'Impossible de joindre Google Sheets.' });
+                }
+                setIsSaving(false);
+            };
+
+            const handleReset = () => {
+                setFormData({
+                    Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, internalPhoto: ''
+                });
+                setMode('new');
+                setFormStatus({ type: '', message: '' });
+            };
+
+            // --- ECRAN DE LOGIN ---
+            if (!isLoggedIn) {
+                return (
+                    <div className="min-h-screen p-4 flex items-center justify-center bg-stone-100">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-10 text-center border border-stone-200">
+                            <LogoPam className="w-28 h-28 mx-auto mb-8" />
+                            <h1 className="text-3xl font-bold text-stone-900 pam-boutique-title uppercase mb-3 tracking-wide">Bienvenue</h1>
+                            <p className="text-stone-500 mb-8 text-sm">Veuillez vous identifier. Vos actions seront enregistrées dans le journal de bord.</p>
+                            <form onSubmit={(e) => { 
+                                e.preventDefault(); 
+                                if(userName.trim()){ 
+                                    setIsLoggedIn(true); 
+                                    localStorage.setItem('pam_username', userName.trim()); 
+                                } 
+                            }}>
+                                <input 
+                                    type="text" 
+                                    value={userName} 
+                                    onChange={e => setUserName(e.target.value)} 
+                                    placeholder="Votre prénom" 
+                                    className="w-full px-5 py-4 border-2 border-stone-200 rounded-xl mb-6 text-center font-bold text-stone-800 focus:border-yellow-400 focus:ring-0 outline-none transition-colors" 
+                                    required 
+                                />
+                                <button type="submit" className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-yellow-400 hover:text-stone-900 transition-all shadow-md">
+                                    Entrer
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // --- APPLICATION PRINCIPALE ---
+            return (
+                <div className="min-h-screen p-4 sm:p-8">
+                <div className="max-w-5xl mx-auto space-y-6">
+                    
+                    <header className="bg-white shadow-sm rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-stone-100">
+                        <div className="flex items-center gap-4">
+                            <LogoPam className="w-16 h-16" />
+                            <div>
+                                <h1 className="text-2xl font-bold text-stone-900 pam-boutique-title tracking-wide uppercase">
+                                    Pam Boutique <span className="text-stone-400 text-base font-sans capitalize tracking-normal">- Import Asynchrone</span>
+                                </h1>
+                                <div className="flex items-center gap-3 text-sm mt-2">
+                                    <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-amber-400' : 'bg-green-500'}`}></div>
+                                    <span className={isLoading ? 'text-amber-600 font-medium' : 'text-green-600 font-medium'}>
+                                        {isLoading ? 'Synchronisation...' : 'Connecté au Drive'}
+                                    </span>
+                                    <span className="text-stone-300">|</span>
+                                    <span className="text-stone-600 flex items-center gap-1 font-medium bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200">
+                                        <IconUser /> {userName}
+                                        <button onClick={() => setIsLoggedIn(false)} className="text-stone-400 hover:text-red-500 ml-2 underline text-xs font-normal transition-colors">(Quitter)</button>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                            <button onClick={fetchSheetData} className="flex items-center gap-2 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg font-medium transition-colors">
+                                {isLoading ? <div className="w-4 h-4 rounded-full border-2 border-stone-400 border-t-transparent animate-spin"></div> : <IconRefresh />} Actualiser
+                            </button>
+                            <button onClick={() => setShowSettingsModal(true)} className="p-2 text-stone-400 hover:text-stone-600 bg-stone-50 hover:bg-stone-100 rounded-lg transition-colors" title="Réparer la connexion">
+                                <IconSettings />
+                            </button>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* FORMULAIRE PRINCIPAL */}
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-white shadow-sm rounded-2xl p-6 border border-stone-100">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                                    {mode === 'edit' ? <span className="text-blue-500"><IconSave /></span> : <span className="text-yellow-500"><IconPlus /></span>}
+                                    {mode === 'edit' ? 'Mise à jour de la fiche' : 'Nouvelle Fiche Shopify'}
+                                    </h2>
+                                    <button onClick={handleReset} className="text-sm text-stone-500 hover:text-stone-900 font-medium underline">Vider le formulaire</button>
+                                </div>
+
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    
+                                    {/* SECTION 1: IDENTIFICATION */}
+                                    <div className="bg-stone-50 p-5 rounded-xl border border-stone-200 space-y-4">
+                                        <h3 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-2">Informations de base</h3>
+                                        <div className="flex flex-col sm:flex-row gap-3 items-end">
+                                            <div className="flex-1 w-full">
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Recherche / Handle *</label>
+                                                <input type="text" name="Handle" value={formData.Handle} onChange={handleInputChange} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }} placeholder="ex: veste-coco-beige" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none transition-all" required />
+                                            </div>
+                                            <button type="button" onClick={handleSearch} className="w-full sm:w-auto px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"><IconSearch /> Vérifier</button>
+                                        </div>
+
+                                        {formStatus.message && (
+                                        <div className={`p-3 rounded-lg text-sm flex items-start gap-2 border ${formStatus.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : formStatus.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+                                            <span className="shrink-0 mt-0.5">{formStatus.type === 'success' ? <IconCheck /> : <IconAlert />}</span>
+                                            <p className="mt-0.5 font-medium">{formStatus.message}</p>
+                                        </div>
+                                        )}
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-stone-700 mb-1">Titre du produit *</label>
+                                            <input type="text" name="Title" value={formData.Title} onChange={handleInputChange} placeholder="Ex: Veste Coco Magnifique" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" required/>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-stone-700 mb-1">Description (HTML autorisé)</label>
+                                            <textarea name="Body" value={formData.Body} onChange={handleInputChange} rows="2" placeholder="<p>Une magnifique veste...</p>" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none custom-scrollbar"></textarea>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Type de vêtement</label>
+                                                <input type="text" name="Type" value={formData.Type} onChange={handleInputChange} placeholder="Ex: Veste" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Tags (séparés par virgule)</label>
+                                                <input type="text" name="Tags" value={formData.Tags} onChange={handleInputChange} placeholder="nouveau, promotion, ete" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="pt-2">
+                                            <label className="block text-sm font-medium text-stone-700 mb-2">Catégorie(s)</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {CATEGORIES_DISPONIBLES.map(cat => (
+                                                    <label key={cat} className={`cursor-pointer px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${formData.category.includes(cat) ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'}`}>
+                                                        <input type="checkbox" className="hidden" checked={formData.category.includes(cat)} onChange={() => handleCheckboxChange('category', cat)} />
+                                                        {cat}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* SECTION 2: TARIFS & POIDS */}
+                                    <div className="bg-stone-50 p-5 rounded-xl border border-stone-200 space-y-4">
+                                        <h3 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-2">Tarifs, Médias & Références</h3>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            <div className="col-span-2">
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">SKU (Base)</label>
+                                                <input type="text" name="Variant SKU" value={formData['Variant SKU']} onChange={handleInputChange} placeholder="REF-COCO" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Prix (€) *</label>
+                                                <input type="number" step="0.01" name="Variant Price" value={formData['Variant Price']} onChange={handleInputChange} placeholder="59.00" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Prix Barré</label>
+                                                <input type="number" step="0.01" name="Variant Compare At Price" value={formData['Variant Compare At Price']} onChange={handleInputChange} placeholder="79.00" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Coût d'achat</label>
+                                                <input type="number" step="0.01" name="CostPerItem" value={formData.CostPerItem} onChange={handleInputChange} placeholder="25.00" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Poids (Grammes)</label>
+                                                <input type="number" name="Grams" value={formData.Grams} onChange={handleInputChange} placeholder="250" className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="block text-sm font-medium text-stone-700 mb-1">Image URL (Shopify CDN)</label>
+                                                <input type="url" name="ImageSrc" value={formData.ImageSrc} onChange={handleInputChange} placeholder="https://cdn.shopify.com/..." className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* SECTION 3: TAILLES & COULEURS */}
+                                    <div className="bg-stone-50 p-5 rounded-xl border border-stone-200">
+                                        <h3 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-4 mb-4">Stock & Déclinaisons</h3>
+                                        <div className="mb-5">
+                                            <label className="block text-sm font-medium text-stone-700 mb-2">Couleur(s) *</label>
+                                            <div className="relative">
+                                                <div className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-stone-900 outline-none transition-all bg-white cursor-pointer flex justify-between items-center" onClick={() => setShowColorDropdown(!showColorDropdown)}>
+                                                    <span className={formData.colors.length === 0 ? "text-stone-400" : "text-stone-800 font-medium"}>
+                                                        {formData.colors.length === 0 ? "Sélectionner couleur(s)..." : formData.colors.join(', ')}
+                                                    </span>
+                                                    <IconChevronDown className={`w-5 h-5 text-stone-400 transition-transform ${showColorDropdown ? 'rotate-180' : ''}`} />
+                                                </div>
+                                                {showColorDropdown && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-10" onClick={() => setShowColorDropdown(false)}></div>
+                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-stone-200 shadow-xl rounded-xl z-20 p-4 max-h-64 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2 custom-scrollbar">
+                                                            {COULEURS_DISPONIBLES.map(c => (
+                                                                <label key={c} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors border ${formData.colors.includes(c) ? 'bg-yellow-50 border-yellow-200' : 'border-transparent hover:bg-stone-50 hover:border-stone-200'}`}>
+                                                                    <input type="checkbox" className="w-4 h-4 text-yellow-500 rounded border-stone-300 focus:ring-yellow-500" checked={formData.colors.includes(c)} onChange={() => handleCheckboxChange('colors', c)} />
+                                                                    <span className="text-sm font-medium text-stone-700">{c}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <label className="block text-sm font-medium text-stone-700 mb-2">Tailles disponibles *</label>
+                                        <div className="flex flex-wrap gap-2 mb-4">
+                                            {TAILLES_DISPONIBLES.map(size => (
+                                                <label key={size} className={`cursor-pointer w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold border transition-all ${formData.sizes.includes(size) ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400'}`}>
+                                                    <input type="checkbox" className="hidden" checked={formData.sizes.includes(size)} onChange={() => handleCheckboxChange('sizes', size)} />
+                                                    {size}
+                                                </label>
+                                            ))}
+                                        </div>
+
+                                        {(formData.sizes.length === 0 || formData.colors.length === 0) ? (
+                                            <div className="p-4 bg-white rounded-xl text-stone-400 text-sm italic text-center border border-dashed border-stone-300 mt-4">
+                                                Cochez au moins une taille et une couleur pour saisir les stocks.
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4 mt-6 animate-fade-in">
+                                                <h4 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-2">Grille des Quantités</h4>
+                                                {formData.colors.map(color => (
+                                                    <div key={color} className="bg-white p-4 rounded-xl border border-stone-200 shadow-sm">
+                                                        <h5 className="font-bold text-stone-800 mb-3 text-sm uppercase tracking-wide flex items-center gap-2">
+                                                            <span className="w-3 h-3 rounded-full bg-yellow-400 border border-yellow-500"></span> {color}
+                                                        </h5>
+                                                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                                                            {formData.sizes.map(size => {
+                                                                const qtyKey = `${size}-${color}`;
+                                                                return (
+                                                                    <div key={size} className="bg-stone-50 p-2 rounded-lg border border-stone-200 flex flex-col items-center">
+                                                                        <label className="block text-xs font-bold text-stone-500 mb-1">{size}</label>
+                                                                        <input type="number" min="0" placeholder="Qté" className="w-full px-1 py-1.5 border border-stone-300 rounded focus:ring-2 focus:ring-stone-900 outline-none text-center font-bold text-stone-800 text-sm" value={formData.quantities[qtyKey] !== undefined ? formData.quantities[qtyKey] : ''} onChange={(e) => setFormData(prev => ({ ...prev, quantities: { ...prev.quantities, [qtyKey]: e.target.value } }))} />
+                                                                    </div>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* SECTION 4: PHOTO INTERNE */}
+                                    <div className="bg-stone-50 p-5 rounded-xl border border-stone-200">
+                                        <h3 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-2 mb-3">Photo d'identification (Interne)</h3>
+                                        <p className="text-xs text-stone-500 mb-4">Prenez une photo rapide du vêtement en stock pour vos archives. <br/><span className="text-stone-400 italic">(Cette photo ne sera pas utilisée par Shopify).</span></p>
+                                        <div className="flex items-center gap-4">
+                                            <label className="flex-1 flex flex-col items-center justify-center p-6 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer hover:bg-stone-100 hover:border-stone-400 transition-colors">
+                                                <IconCamera className="w-8 h-8 text-stone-400 mb-2" />
+                                                <span className="text-sm font-medium text-stone-600">Prendre / Sélectionner une photo</span>
+                                                {/* capture="environment" ouvrira l'appareil photo arrière sur smartphone */}
+                                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoCapture} />
+                                            </label>
+                                            {formData.internalPhoto && (
+                                                <div className="relative w-28 h-28 rounded-xl border border-stone-200 overflow-hidden shrink-0 shadow-sm bg-white">
+                                                    <img src={formData.internalPhoto} alt="Aperçu Interne" className="w-full h-full object-cover" />
+                                                    <button type="button" onClick={() => setFormData(prev => ({...prev, internalPhoto: ''}))} className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow transition-colors" title="Supprimer">
+                                                        <IconX className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <button type="submit" disabled={isSaving} className="w-full py-4 px-4 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-3 disabled:opacity-70 uppercase tracking-widest text-sm">
+                                            {isSaving ? <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin"></div> : (mode === 'edit' ? <IconSave /> : <IconPlus />)}
+                                            {isSaving ? 'Envoi en cours...' : 'Ajouter au futur stock online'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* HISTORIQUE */}
+                        <div className="bg-white shadow-sm rounded-2xl p-6 border border-stone-100 flex flex-col h-full max-h-[850px]">
+                            <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4 flex items-center justify-between">
+                                Historique d'actions <span className="bg-stone-100 text-stone-600 px-2 py-1 rounded">{fileData.length} Lignes</span>
+                            </h3>
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                                {logs.length === 0 ? (
+                                    <p className="text-sm text-stone-400 italic text-center mt-10">En attente de synchronisation.</p>
+                                ) : (
+                                    logs.map(log => (
+                                    <div key={log.id} className="text-sm border-l-2 pl-3 py-2 border-stone-200">
+                                        <span className="text-xs text-stone-400 font-mono block mb-1">{log.time}</span>
+                                        <span className={log.type === 'success' ? 'text-green-700 font-medium' : log.type === 'error' ? 'text-red-600 font-medium' : 'text-stone-700'}>
+                                        {log.message}
+                                        </span>
+                                    </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* FENÊTRE DE VÉRIFICATION (Recherche) */}
+                    {showModal && (
+                        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                                <div className="flex justify-between items-center p-5 border-b border-stone-100 shrink-0 bg-stone-50">
+                                    <h3 className="font-bold text-lg text-stone-900 pam-boutique-title">Vérification dans la base</h3>
+                                    <button onClick={() => setShowModal(false)} className="text-stone-400 hover:text-stone-800"><IconX /></button>
+                                </div>
+                                
+                                <div className="p-6 overflow-y-auto custom-scrollbar">
+                                    {selectedVariantsGroup ? (
+                                        <div className="text-center">
+                                            <div className="w-24 h-24 bg-stone-100 rounded-xl mx-auto mb-4 flex items-center justify-center overflow-hidden border border-stone-200 shadow-sm">
+                                                {selectedVariantsGroup[0]['Image Src'] ? <img src={selectedVariantsGroup[0]['Image Src']} className="w-full h-full object-cover" /> : selectedVariantsGroup[0]['Photo Interne'] ? <img src={selectedVariantsGroup[0]['Photo Interne']} className="w-full h-full object-cover" /> : <IconImage className="text-stone-400 w-8 h-8" />}
+                                            </div>
+                                            <h4 className="font-bold text-stone-900 text-xl mb-1">{selectedVariantsGroup[0].Title || 'Produit sans titre'}</h4>
+                                            <p className="text-sm text-stone-500 mb-6 font-mono bg-stone-100 inline-block px-3 py-1 rounded">{selectedVariantsGroup[0].Handle}</p>
+                                            
+                                            <div className="bg-stone-50 rounded-xl p-4 mb-6 text-left border border-stone-200 max-h-64 overflow-y-auto custom-scrollbar">
+                                                <p className="text-sm font-bold text-stone-800 mb-3 uppercase tracking-wide">Tailles en stock actuellement :</p>
+                                                <div className="flex flex-col gap-2">
+                                                    {selectedVariantsGroup.map((v, i) => (v['Option1 Value'] || v['Option2 Value']) ? (
+                                                        <div key={i} className="flex justify-between items-center bg-white border border-stone-200 px-3 py-2 rounded-lg shadow-sm">
+                                                            <span className="text-stone-700 font-medium text-sm">
+                                                                {v['Option2 Value']} - <span className="font-bold bg-stone-100 px-2 py-0.5 rounded">{v['Option1 Value']}</span>
+                                                            </span>
+                                                            <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-md">
+                                                                Stock: {v['Variant Inventory Qty'] || '0'}
+                                                            </span>
+                                                        </div>
+                                                    ) : null)}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-3 mt-8">
+                                                <button onClick={() => { searchResults.length > 1 ? setSelectedVariantsGroup(null) : setShowModal(false) }} className="flex-1 px-4 py-3 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-50 font-bold transition-colors">Retour</button>
+                                                <button onClick={confirmSearch} className="flex-1 px-4 py-3 text-stone-900 bg-yellow-400 hover:bg-yellow-500 rounded-xl font-bold shadow-sm transition-colors">Modifier le stock</button>
+                                            </div>
+                                        </div>
+                                    ) : searchResults.length > 1 ? (
+                                        <div>
+                                            <p className="text-stone-600 mb-4 text-center">Plusieurs produits correspondent. Lequel voulez-vous modifier ?</p>
+                                            <div className="space-y-3 mb-6 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                                                {searchResults.map((group, idx) => (
+                                                    <div key={idx} onClick={() => setSelectedVariantsGroup(group)} className="flex items-center gap-4 p-4 border border-stone-200 rounded-xl hover:border-stone-900 hover:bg-stone-50 cursor-pointer transition-all">
+                                                        <div className="w-16 h-16 bg-stone-100 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border border-stone-200">
+                                                            {group[0]['Image Src'] ? <img src={group[0]['Image Src']} className="w-full h-full object-cover" /> : group[0]['Photo Interne'] ? <img src={group[0]['Photo Interne']} className="w-full h-full object-cover" /> : <IconImage className="text-stone-400 w-6 h-6" />}
+                                                        </div>
+                                                        <div className="overflow-hidden">
+                                                            <p className="font-bold text-stone-900 truncate">{group[0].Title || 'Sans titre'}</p>
+                                                            <p className="text-xs text-stone-500 font-mono truncate">{group[0].Handle}</p>
+                                                            <p className="text-xs text-stone-400 mt-1">{group.length} variante(s) trouvée(s)</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-6">
+                                            <div className="w-20 h-20 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6"><IconSearch width="32" height="32" /></div>
+                                            <h4 className="font-bold text-stone-900 text-xl mb-2 pam-boutique-title">Nouveau Produit</h4>
+                                            <p className="text-stone-600 mb-8">Ce Handle n'existe pas encore. Voulez-vous préparer la fiche pour l'ajouter au catalogue en ligne ?</p>
+                                            <div className="flex gap-3">
+                                                <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-3 border border-stone-300 rounded-xl hover:bg-stone-50 font-bold text-stone-700 transition-colors">Annuler</button>
+                                                <button onClick={confirmSearch} className="flex-1 px-4 py-3 text-white bg-stone-900 hover:bg-stone-800 rounded-xl font-bold shadow-md transition-colors">Créer la fiche</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FENÊTRE DE PARAMÈTRES (Mise à jour du script) */}
+                    {showSettingsModal && (
+                        <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                                <div className="flex justify-between items-center p-5 border-b border-stone-100 shrink-0 bg-stone-50">
+                                    <h3 className="font-bold text-lg text-stone-900 flex items-center gap-2"><IconSettings /> Réparer la connexion Google</h3>
+                                    <button onClick={() => setShowSettingsModal(false)} className="text-stone-400 hover:text-stone-800"><IconX /></button>
+                                </div>
+                                <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-red-800 text-sm">
+                                        <p className="font-bold mb-1 text-base">⚠️ ACTION REQUISE POUR LES NOUVEAUX CHAMPS</p>
+                                        <p>Pour que Google comprenne la nouvelle structure stricte de Shopify (Tags, Type, Images...), vous <strong>devez</strong> remplacer votre script par ce nouveau code et le redéployer.</p>
+                                    </div>
+
+                                    <ol className="list-decimal list-inside text-sm text-stone-600 space-y-3 font-medium">
+                                        <li>Ouvrez votre <a href="https://docs.google.com/spreadsheets/d/1t4lZS7eza61t493shbYnu70NBOHG2w1IfGBFfyqYq4g/edit" target="_blank" className="text-blue-600 underline font-bold">Fichier Google Sheet</a> et cliquez sur <strong>Extensions &gt; Apps Script</strong>.</li>
+                                        <li>Remplacez tout l'ancien code par celui-ci (cliquez pour copier) :</li>
+                                    </ol>
+
+                                    <textarea 
+                                        readOnly 
+                                        className="w-full h-48 p-4 bg-stone-900 text-green-400 font-mono text-xs rounded-xl border border-stone-300 custom-scrollbar cursor-pointer"
+                                        value={appScriptCode}
+                                        onClick={(e) => { e.target.select(); document.execCommand('copy'); alert("✅ Code copié !"); }}
+                                    />
+
+                                    <div className="bg-amber-50 p-5 rounded-xl border border-amber-200">
+                                        <p className="text-amber-900 text-sm font-bold mb-3">LES 5 CLICS POUR VALIDER (Très important) :</p>
+                                        <ol className="list-decimal list-inside text-sm text-amber-800 space-y-2 font-medium">
+                                            <li>Cliquez en haut à droite sur le bouton bleu <strong>Déployer</strong>.</li>
+                                            <li>Cliquez sur <strong>Gérer les déploiements</strong>.</li>
+                                            <li>Cliquez sur le petit <strong>Crayon (Modifier)</strong> ✏️ à droite.</li>
+                                            <li className="bg-yellow-200 p-1 rounded inline-block">Dans le menu "Version", choisissez absolument <strong>Nouvelle version</strong>.</li>
+                                            <li>Cliquez sur <strong>Déployer</strong> en bas.</li>
+                                        </ol>
+                                    </div>
+                                    <button onClick={() => setShowSettingsModal(false)} className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold shadow-md hover:bg-stone-800 transition-colors uppercase tracking-wide">J'ai bien mis à jour le script</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
