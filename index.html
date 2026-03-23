@@ -64,16 +64,16 @@
             const [formStatus, setFormStatus] = useState({ type: '', message: '' });
             const [mode, setMode] = useState('new'); 
             const [showModal, setShowModal] = useState(false);
+            const [showSettingsModal, setShowSettingsModal] = useState(false);
             const [searchResults, setSearchResults] = useState([]);
             const [selectedVariantsGroup, setSelectedVariantsGroup] = useState([]);
 
-            useEffect(() => {
-                if (webhookUrl && isLoggedIn) fetchSheetData();
-            }, [isLoggedIn]);
+            // --- NOUVEAU: Champs libres pour tailles ---
+            const [customSizeInput, setCustomSizeInput] = useState('');
+            const [dynamicSizes, setDynamicSizes] = useState([]);
 
-            const fetchSheetData = async () => {
-                setIsLoading(true);
-                try {
+            useEffect(() => {
+                if (isConfigured && webhookUrl && isLoggedIn) fetchSheetData();
                     const response = await fetch(webhookUrl);
                     const textData = await response.text();
                     let data = JSON.parse(textData);
@@ -126,11 +126,13 @@
             const handleSearch = (e) => {
                 if (e) e.preventDefault();
                 if (!formData.Handle) { setFormStatus({ type: 'error', message: 'Veuillez entrer un terme de recherche.' }); return; }
-                const query = (formData.Handle || '').toLowerCase().replace(/[\s-]/g, '');
+                
+                const query = String(formData.Handle || '').toLowerCase().replace(/[\s-]/g, '');
+                
                 const matches = fileData.filter(item => 
-                    (item.Handle || '').toLowerCase().replace(/[\s-]/g, '').includes(query) || 
-                    (item.Title || '').toLowerCase().replace(/[\s-]/g, '').includes(query) ||
-                    (item['Variant SKU'] || '').toLowerCase().replace(/[\s-]/g, '').includes(query)
+                    String(item.Handle || '').toLowerCase().replace(/[\s-]/g, '').includes(query) || 
+                    String(item.Title || '').toLowerCase().replace(/[\s-]/g, '').includes(query) ||
+                    String(item['Variant SKU'] || '').toLowerCase().replace(/[\s-]/g, '').includes(query)
                 );
                 
                 const groups = {};
@@ -157,19 +159,23 @@
                         qtyMap[`${size}-${color}`] = v['Variant Inventory Qty'] || '';
                     });
 
+                    // Détection des tailles personnalisées existantes
+                    const loadedDynamicSizes = Array.from(existingSizes).filter(s => !TAILLES_DISPONIBLES.includes(s));
+                    setDynamicSizes(loadedDynamicSizes);
+
                     setFormData({
                         Handle: firstVariant.Handle || '',
                         Title: firstVariant.Title || '',
                         Body: firstVariant['Body (HTML)'] || '',
                         Type: firstVariant['Type'] || '',
                         Tags: firstVariant['Tags'] || '',
-                        'Variant SKU': firstVariant['Variant SKU'] ? firstVariant['Variant SKU'].split('-')[0] : '', 
+                        'Variant SKU': firstVariant['Variant SKU'] ? String(firstVariant['Variant SKU']) : '', 
                         'Variant Price': firstVariant['Variant Price'] || '',
                         'Variant Compare At Price': firstVariant['Variant Compare At Price'] || '',
                         CostPerItem: firstVariant['Cost per item'] || '',
                         Grams: firstVariant['Variant Grams'] || '',
                         ImageSrc: firstVariant['Image Src'] || '',
-                        category: firstVariant['Product Category'] ? firstVariant['Product Category'].split('>').map(c => c.trim()) : [],
+                        category: firstVariant['Product Category'] ? String(firstVariant['Product Category']).split('>').map(c => c.trim()) : [],
                         colors: Array.from(existingColors),
                         sizes: Array.from(existingSizes),
                         quantities: qtyMap,
@@ -179,8 +185,10 @@
                     setFormStatus({ type: 'success', message: 'Produit complet chargé.' });
                 } else {
                     setFormData(prev => ({
-                        ...prev, Handle: prev.Handle.toLowerCase().replace(/\s+/g, '-'), Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, internalPhoto: ''
+                        ...prev, Handle: String(prev.Handle || '').toLowerCase().replace(/\s+/g, '-'), Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, internalPhoto: ''
                     }));
+                    setDynamicSizes([]);
+                    setCustomSizeInput('');
                     setMode('new');
                     setFormStatus({ type: 'info', message: 'Création en cours.' });
                 }
@@ -208,16 +216,15 @@
                     const colorsToProcess = formData.colors.length > 0 ? formData.colors : ['Défaut'];
                     let isFirstRow = true;
 
-                    // Formatage EXACT des Metafields Shopify pour la Taxonomie (Comme dans votre JC Test)
+                    // Formatage EXACT des Metafields Shopify
                     const stringifiedSizes = sizesToProcess.join('; ');
                     const stringifiedColors = colorsToProcess.join('; ');
 
                     sizesToProcess.forEach(size => {
                         colorsToProcess.forEach(color => {
                             const qtyKey = `${size}-${color}`;
-                            const skuSuffix = (sizesToProcess.length > 1 || colorsToProcess.length > 1) ? `-${size}-${color.replace(/\s+/g, '').toUpperCase()}` : '';
+                            const skuSuffix = (sizesToProcess.length > 1 || colorsToProcess.length > 1) ? `-${size}-${String(color).replace(/\s+/g, '').toUpperCase()}` : '';
                             
-                            // Construction 100% Shopify Compliant (Metafields inclus)
                             payloads.push({
                                 'Handle': formData.Handle,
                                 'Title': isFirstRow ? formData.Title : '', 
@@ -236,7 +243,7 @@
                                 'Option2 Value': color,
                                 'Option2 Linked To': 'product.metafields.shopify.color-pattern',
                                 
-                                // Metafields obligatoires (seulement sur la première ligne pour la fiche globale)
+                                // Metafields
                                 'Taille (product.metafields.shopify.size)': isFirstRow ? stringifiedSizes : '',
                                 'Couleur (product.metafields.shopify.color-pattern)': isFirstRow ? stringifiedColors : '',
                                 
@@ -290,7 +297,28 @@
 
             const handleReset = () => {
                 setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, internalPhoto: '' });
+                setDynamicSizes([]);
+                setCustomSizeInput('');
                 setMode('new'); setFormStatus({ type: '', message: '' });
+            };
+
+            const handleAddCustomSize = (e) => {
+                if (e) e.preventDefault();
+                const newSize = customSizeInput.trim().toUpperCase();
+                if (!newSize) return;
+
+                if (!TAILLES_DISPONIBLES.includes(newSize) && !dynamicSizes.includes(newSize)) {
+                    setDynamicSizes(prev => [...prev, newSize]);
+                }
+                
+                setFormData(prev => {
+                    if (!prev.sizes.includes(newSize)) {
+                        return { ...prev, sizes: [...prev.sizes, newSize] };
+                    }
+                    return prev;
+                });
+                
+                setCustomSizeInput('');
             };
 
             // --- ECRAN DE LOGIN ---
@@ -465,13 +493,33 @@
                                         </div>
 
                                         <label className="block text-sm font-medium text-stone-700 mb-2">Tailles disponibles *</label>
-                                        <div className="flex flex-wrap gap-2 mb-4">
-                                            {TAILLES_DISPONIBLES.map(size => (
-                                                <label key={size} className={`cursor-pointer w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold border transition-all ${formData.sizes.includes(size) ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400'}`}>
+                                        <div className="flex flex-wrap gap-2 mb-4 items-center">
+                                            {[...TAILLES_DISPONIBLES, ...dynamicSizes].map(size => (
+                                                <label key={size} className={`cursor-pointer px-3 min-w-[2.5rem] h-10 flex items-center justify-center rounded-lg text-sm font-bold border transition-all ${formData.sizes.includes(size) ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400'}`}>
                                                     <input type="checkbox" className="hidden" checked={formData.sizes.includes(size)} onChange={() => handleCheckboxChange('sizes', size)} />
                                                     {size}
                                                 </label>
                                             ))}
+                                            
+                                            {/* Input pour taille personnalisée */}
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <input 
+                                                    type="text" 
+                                                    value={customSizeInput}
+                                                    onChange={(e) => setCustomSizeInput(e.target.value)}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomSize(); } }}
+                                                    placeholder="Autre..."
+                                                    className="w-20 h-10 px-2 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none transition-all uppercase"
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    onClick={handleAddCustomSize}
+                                                    className="h-10 px-3 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-lg transition-colors flex items-center justify-center font-bold"
+                                                    title="Ajouter cette taille"
+                                                >
+                                                    <IconPlus className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {(formData.sizes.length === 0 || formData.colors.length === 0) ? (
