@@ -48,6 +48,7 @@
 
         function App() {
             const [webhookUrl] = useState('https://script.google.com/macros/s/AKfycbwCUNmNcoikoxMIaPnJwx_R1knx5aYn4pBpg6rXhAR4R15y_w641NGKbl7MRa93nvVD/exec');
+            const [isConfigured] = useState(true);
             
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
             const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('pam_username'));
@@ -73,10 +74,22 @@
             const [dynamicSizes, setDynamicSizes] = useState([]);
 
             useEffect(() => {
-                if (isConfigured && webhookUrl && isLoggedIn) fetchSheetData();
+                if (isConfigured && webhookUrl && isLoggedIn) {
+                    fetchSheetData();
+                }
+            }, [isConfigured, isLoggedIn, webhookUrl]);
+
+            const fetchSheetData = async () => {
+                setIsLoading(true);
+                try {
                     const response = await fetch(webhookUrl);
                     const textData = await response.text();
-                    let data = JSON.parse(textData);
+                    let data;
+                    try {
+                        data = JSON.parse(textData);
+                    } catch (e) {
+                        throw new Error("Erreur format");
+                    }
                     if (Array.isArray(data)) {
                         setFileData(data);
                         addLog(`Connecté : ${data.length} variantes synchronisées.`, 'success');
