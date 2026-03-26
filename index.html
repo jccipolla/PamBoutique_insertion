@@ -57,7 +57,6 @@
         const IconBarcode = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>;
         const IconPrinter = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
         const IconSparkles = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M3 5h4"/></svg>;
-        const IconCalendar = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 
         const LogoPam = ({ className = "w-16 h-16" }) => (
             <img src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" alt="Pam Boutique" className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`} onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true"; }} />
@@ -79,18 +78,18 @@
         const safeString = (val) => val != null ? String(val).toLowerCase().trim().replace(/[\s-]/g, '') : '';
 
         function App() {
-            const [webhookUrl] = useState('https://script.google.com/macros/s/AKfycbwCUNmNcoikoxMIaPnJwx_R1knx5aYn4pBpg6rXhAR4R15y_w641NGKbl7MRa93nvVD/exec');
+            const webhookUrl = 'https://script.google.com/macros/s/AKfycbwCUNmNcoikoxMIaPnJwx_R1knx5aYn4pBpg6rXhAR4R15y_w641NGKbl7MRa93nvVD/exec';
             
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
             const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('pam_username'));
             const [fileData, setFileData] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
             const [isSaving, setIsSaving] = useState(false);
+            const [isGeneratingAI, setIsGeneratingAI] = useState(false);
             const [logs, setLogs] = useState([]);
             
             // UX Mobile States
             const [searchQuery, setSearchQuery] = useState('');
-            const [filterDate, setFilterDate] = useState('');
             const [showColorDropdown, setShowColorDropdown] = useState(false);
             const [mode, setMode] = useState('new'); 
             const [showModal, setShowModal] = useState(false);
@@ -109,23 +108,23 @@
             const [customCatInput, setCustomCatInput] = useState('');
             const [dynamicCats, setDynamicCats] = useState([]);
 
+            // Fonctions utilitaires globales
+            const addLog = (message, type = 'info') => {
+                setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev]);
+            };
+
             // DOUBLE CHECK : Détection doublon en temps réel
             const handleExists = useMemo(() => {
                 const queryHandle = safeString(formData.Handle);
-                const querySku = safeString(formData['Variant SKU']);
-                if (!queryHandle && !querySku) return false;
+                if (!queryHandle) return false;
 
-                return fileData.some(item => {
-                    const itemH = safeString(item.Handle);
-                    const itemS = safeString(item['Variant SKU']);
-                    return (queryHandle && itemH === queryHandle) || (querySku && itemS === querySku);
-                });
-            }, [formData.Handle, formData['Variant SKU'], fileData]);
+                return (fileData || []).some(item => safeString(item.Handle) === queryHandle);
+            }, [formData.Handle, fileData]);
 
             // HISTORIQUE TAGS INTELLIGENT
             const existingTags = useMemo(() => {
                 const tagsSet = new Set();
-                fileData.forEach(row => {
+                (fileData || []).forEach(row => {
                     if (row.Tags) {
                         String(row.Tags).split(',').forEach(t => {
                             const tag = t.trim();
@@ -137,34 +136,31 @@
             }, [fileData]);
 
             useEffect(() => {
-                if (webhookUrl && isLoggedIn) fetchSheetData();
+                if (webhookUrl && isLoggedIn) {
+                    fetchSheetData();
+                }
             }, [isLoggedIn, webhookUrl]);
 
-            // Fetch classique réparé (sans paramètre anti-cache pour éviter l'erreur CORS Google Apps Script)
             const fetchSheetData = async () => {
                 setIsLoading(true);
                 try {
-                    const response = await fetch(webhookUrl);
+                    const cacheBusterUrl = webhookUrl + '?t=' + new Date().getTime();
+                    const response = await fetch(cacheBusterUrl);
                     const textData = await response.text();
                     let data;
-                    try {
-                        data = JSON.parse(textData);
-                    } catch (e) {
-                        throw new Error("Erreur format");
-                    }
+                    try { data = JSON.parse(textData); } catch (e) { throw new Error("Erreur format json"); }
                     if (Array.isArray(data)) {
                         setFileData(data);
-                        addLog(`Connecté : ${data.length} variantes synchronisées.`, 'success');
+                        addLog(`Connecté : ${data.length} variantes.`, 'success');
                     }
                 } catch (error) {
-                    addLog(`Erreur de connexion avec le serveur.`, 'error');
+                    addLog(`Erreur de connexion.`, 'error');
                 }
                 setIsLoading(false);
             };
 
             const handleInputChange = (e) => {
                 const { name, value } = e.target;
-                // MAJUSCULES FORCÉES SUR LE TITRE
                 const finalValue = name === 'Title' ? String(value).toUpperCase() : value;
                 setFormData(prev => ({ ...prev, [name]: finalValue }));
                 setFormStatus({ type: '', message: '' });
@@ -172,7 +168,7 @@
 
             const handleCheckboxChange = (type, value) => {
                 setFormData(prev => {
-                    const list = prev[type];
+                    const list = prev[type] || [];
                     const newList = list.includes(value) ? list.filter(item => item !== value) : [...list, value];
                     return { ...prev, [type]: newList };
                 });
@@ -192,7 +188,6 @@
                 setCustomSizeInput('');
             };
 
-            // NOUVELLE CATEGORIE + WARNING
             const handleAddCustomCat = (e) => {
                 if (e) e.preventDefault();
                 const newCat = customCatInput.trim();
@@ -202,7 +197,7 @@
                 }
                 setFormData(prev => {
                     if (!prev.category.includes(newCat)) {
-                        alert(`⚠️ AVERTISSEMENT : La catégorie "${newCat}" n'est pas standard. Assurez-vous qu'elle existe dans Shopify.`);
+                        alert(`⚠️ AVERTISSEMENT : La catégorie "${newCat}" n'est pas standard.`);
                         return { ...prev, category: [...prev.category, newCat] };
                     }
                     return prev;
@@ -210,7 +205,6 @@
                 setCustomCatInput('');
             };
 
-            // AJOUT TAG DEPUIS HISTORIQUE
             const handleAddTag = (tag) => {
                 setFormData(prev => {
                     const currentTags = prev.Tags ? String(prev.Tags).split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -222,7 +216,6 @@
                 });
             };
 
-            // GENERATION EAN (FORMULAIRE)
             const handleGenerateEANs = () => {
                 setFormData(prev => {
                     const newEans = { ...prev.eans };
@@ -237,6 +230,27 @@
                 addLog("Codes EAN générés.", "success");
             };
 
+            // Gestion IA (Mock API call)
+            const handleGenerateDescription = async () => {
+                if (!formData.Title) {
+                    setFormStatus({ type: 'error', message: 'Veuillez renseigner le Titre du produit pour utiliser l\'IA.'});
+                    return;
+                }
+                setIsGeneratingAI(true);
+                addLog("Génération IA en cours...", "info");
+                
+                try {
+                    // Simulation IA for canvas robustness without external API key
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    const mockText = `<p>Découvrez notre modèle <strong>${formData.Title}</strong>, conçu spécialement pour vous. Fabriqué avec soin, ce produit allie élégance et confort. Parfait pour toutes vos occasions.</p>`;
+                    setFormData(prev => ({ ...prev, Body: mockText }));
+                    addLog("Description IA ajoutée.", "success");
+                } catch (error) {
+                    setFormStatus({ type: 'error', message: "L'IA est momentanément indisponible."});
+                }
+                setIsGeneratingAI(false);
+            };
+
             const handlePhotoCapture = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -247,32 +261,37 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 400; const MAX_HEIGHT = 400;
+                        const MAX_WIDTH = 300; const MAX_HEIGHT = 300;
                         let width = img.width; let height = img.height;
                         if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
                         else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
                         canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        setFormData(prev => ({ ...prev, internalPhoto: canvas.toDataURL('image/jpeg', 0.6) }));
+                        setFormData(prev => ({ ...prev, internalPhoto: canvas.toDataURL('image/jpeg', 0.4) }));
                     };
                 };
             };
 
-            const handleSearch = (e) => {
+            // RECHERCHE GLOBALE ROBUSTE
+            const handleGlobalSearch = (e) => {
                 if (e) e.preventDefault();
-                if (!formData.Handle) { setFormStatus({ type: 'error', message: 'Veuillez entrer un terme de recherche.' }); return; }
+                if (!searchQuery) return;
                 
-                const query = String(formData.Handle || '').toLowerCase().replace(/[\s-]/g, '');
-                
-                const matches = fileData.filter(item => 
-                    String(item.Handle || '').toLowerCase().replace(/[\s-]/g, '').includes(query) || 
-                    String(item.Title || '').toLowerCase().replace(/[\s-]/g, '').includes(query) ||
-                    String(item['Variant SKU'] || '').toLowerCase().replace(/[\s-]/g, '').includes(query)
+                const query = safeString(searchQuery);
+                const matches = (fileData || []).filter(item => 
+                    safeString(item.Handle).includes(query) || 
+                    safeString(item.Title).includes(query) ||
+                    safeString(item['Variant SKU']).includes(query) ||
+                    safeString(item['Variant Barcode']).includes(query)
                 );
                 
                 const groups = {};
-                matches.forEach(item => { if (!groups[item.Handle]) groups[item.Handle] = []; groups[item.Handle].push(item); });
+                matches.forEach(item => { 
+                    const handle = item.Handle || 'unknown';
+                    if (!groups[handle]) groups[handle] = []; 
+                    groups[handle].push(item); 
+                });
                 const uniqueHandles = Object.keys(groups).map(handle => groups[handle]);
 
                 setSearchResults(uniqueHandles);
@@ -280,45 +299,59 @@
                 setShowModal(true);
             };
 
-            // RECHERCHE GLOBALE ET FILTRE PAR DATE
-            const handleGlobalSearch = (e) => {
-                if (e) e.preventDefault();
-                if (!searchQuery && !filterDate) {
-                    setFormStatus({ type: 'error', message: 'Veuillez entrer un terme ou choisir une date.' });
+            const handleReset = () => {
+                setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '' });
+                setDynamicSizes([]); setDynamicCats([]); setCustomSizeInput(''); setCustomCatInput(''); setSearchQuery('');
+                setMode('new'); setFormStatus({ type: '', message: '' });
+            };
+
+            const handleCreateDirect = () => {
+                handleReset();
+                if(searchQuery) {
+                    setFormData(prev => ({
+                        ...prev, 
+                        Title: String(searchQuery).toUpperCase(),
+                        Handle: String(searchQuery).toLowerCase().replace(/[\s_]+/g, '-').replace(/[^\w-]/g, '') 
+                    }));
+                }
+                setMode('new');
+                setFormStatus({ type: 'info', message: 'Nouveau produit. Remplissez la fiche.' });
+                window.scrollTo({ top: 300, behavior: 'smooth' });
+            };
+
+            // CONFIRM SEARCH : POPULATE FORM ROBUSTEMENT
+            const confirmSearch = () => {
+                if (!selectedVariantsGroup || selectedVariantsGroup.length === 0) {
+                    handleCreateDirect();
                     return;
                 }
                 
-                let matches = fileData || [];
-
-                // Filtre par texte (SKU, Handle, Titre, EAN)
-                if (searchQuery) {
-                    const query = safeString(searchQuery);
-                    matches = matches.filter(item => 
-                        safeString(item.Handle).includes(query) || 
-                        safeString(item.Title).includes(query) ||
-                        safeString(item['Variant SKU']).includes(query) ||
-                        safeString(item['Variant Barcode']).includes(query)
-                    );
-                }
-
-                // Filtre par Date (Horodatage)
-                if (filterDate) {
-                    const [y, m, d] = filterDate.split('-');
-                    const formattedDate = `${d}/${m}/${y}`; // Convertit YYYY-MM-DD en DD/MM/YYYY
-                    matches = matches.filter(item => item['Horodatage'] && item['Horodatage'].includes(formattedDate));
-                }
+                const firstVariant = selectedVariantsGroup[0] || {};
+                const existingSizes = new Set();
+                const existingColors = new Set();
+                const qtyMap = {};
+                const eanMap = {};
                 
-                const groups = {};
-                matches.forEach(item => { if (!groups[item.Handle]) groups[item.Handle] = []; groups[item.Handle].push(item); });
-                const uniqueHandles = Object.keys(groups).map(handle => groups[handle]);
+                selectedVariantsGroup.forEach(v => {
+                    const size = String(v['Option1 Value'] || 'TU');
+                    const color = String(v['Option2 Value'] || 'Défaut');
+                    if (v['Option1 Value']) existingSizes.add(size);
+                    if (v['Option2 Value']) existingColors.add(color);
+                    qtyMap[`${size}-${color}`] = v['Variant Inventory Qty'] || '';
+                    if (v['Variant Barcode']) eanMap[`${size}-${color}`] = v['Variant Barcode'];
+                });
 
-                setSearchResults(uniqueHandles);
-                setSelectedVariantsGroup(uniqueHandles.length === 1 ? uniqueHandles[0] : null);
-                setShowModal(true);
-            };
+                const loadedDynamicSizes = Array.from(existingSizes).filter(s => !TAILLES_DISPONIBLES.includes(s));
+                setDynamicSizes(loadedDynamicSizes);
 
-            const confirmSearch = () => {
+                const loadedCats = firstVariant['Product Category'] ? String(firstVariant['Product Category']).split('>').map(c => c.trim()) : [];
+                const loadedDynamicCats = loadedCats.filter(c => !CATEGORIES_DISPONIBLES.includes(c));
                 setDynamicCats(loadedDynamicCats);
+
+                let baseSku = '';
+                if (firstVariant['Variant SKU']) {
+                    baseSku = String(firstVariant['Variant SKU']).split('-')[0];
+                }
 
                 setFormData({
                     Handle: String(firstVariant.Handle || ''),
@@ -326,22 +359,22 @@
                     Body: String(firstVariant['Body (HTML)'] || ''),
                     Type: String(firstVariant['Type'] || ''),
                     Tags: String(firstVariant['Tags'] || ''),
-                    // RETOUR DU SPLIT('-')[0] : Coupe la référence "REF-COCO-M-ROSE" pour ne garder que "REF-COCO" (Base)
-                    'Variant SKU': firstVariant['Variant SKU'] ? String(firstVariant['Variant SKU']).split('-')[0] : '', 
-                    'Variant Price': firstVariant['Variant Price'] || '',
-                    'Variant Compare At Price': firstVariant['Variant Compare At Price'] || '',
-                    CostPerItem: firstVariant['Cost per item'] || '',
-                    Grams: firstVariant['Variant Grams'] || '',
-                    ImageSrc: firstVariant['Image Src'] || '',
+                    'Variant SKU': baseSku, 
+                    'Variant Price': String(firstVariant['Variant Price'] || ''),
+                    'Variant Compare At Price': String(firstVariant['Variant Compare At Price'] || ''),
+                    CostPerItem: String(firstVariant['Cost per item'] || ''),
+                    Grams: String(firstVariant['Variant Grams'] || ''),
+                    ImageSrc: String(firstVariant['Image Src'] || ''),
                     category: loadedCats,
                     colors: Array.from(existingColors),
                     sizes: Array.from(existingSizes),
                     quantities: qtyMap,
                     eans: eanMap,
-                    internalPhoto: firstVariant['Photo Interne'] || ''
+                    internalPhoto: String(firstVariant['Photo Interne'] || '')
                 });
+                
                 setMode('edit');
-                setFormStatus({ type: 'success', message: 'Produit chargé. Prêt à modifier.' });
+                setFormStatus({ type: 'success', message: 'Fiche chargée. Prête à modifier.' });
                 setShowModal(false);
                 window.scrollTo({ top: 300, behavior: 'smooth' });
             };
@@ -351,7 +384,7 @@
                 if (!formData.Handle || !formData.Title || !formData['Variant Price']) {
                     setFormStatus({ type: 'error', message: 'Handle, Titre et Prix sont obligatoires.' }); return;
                 }
-                if (formData.sizes.length === 0 || formData.colors.length === 0) {
+                if (!formData.sizes || formData.sizes.length === 0 || !formData.colors || formData.colors.length === 0) {
                     setFormStatus({ type: 'error', message: 'Sélectionnez au moins une taille et une couleur.' }); return;
                 }
 
@@ -365,7 +398,6 @@
 
                     const stringifiedSizes = sizesToProcess.join('; ');
                     const stringifiedColors = colorsToProcess.join('; ');
-                    const timestamp = new Date().toLocaleString('fr-FR'); // Horodatage actuel
 
                     sizesToProcess.forEach(size => {
                         colorsToProcess.forEach(color => {
@@ -377,7 +409,7 @@
                                 'Title': isFirstRow ? formData.Title : '', 
                                 'Body (HTML)': isFirstRow ? formData.Body : '',
                                 'Vendor': isFirstRow ? 'PAM Boutique' : '',
-                                'Product Category': isFirstRow ? formData.category.join(' > ') : '',
+                                'Product Category': isFirstRow ? (formData.category || []).join(' > ') : '',
                                 'Type': isFirstRow ? formData.Type : '',
                                 'Tags': isFirstRow ? formData.Tags : '',
                                 'Published': isFirstRow ? 'TRUE' : '',
@@ -410,7 +442,6 @@
                                 'Variant Inventory Qty': formData.quantities[key] || '0',
                                 
                                 'Opérateur': userName,
-                                'Horodatage': timestamp,
                                 'Photo Interne': isFirstRow ? formData.internalPhoto : ''
                             });
                             isFirstRow = false;
@@ -427,7 +458,6 @@
                     addLog(`Enregistré : ${formData.Handle} (${payloads.length} var.)`, 'success');
                     setFormStatus({ type: 'success', message: 'Sauvegardé avec succès !' });
                     
-                    // MàJ locale
                     setFileData(prev => {
                         const newFileData = [...(prev || [])];
                         payloads.forEach(p => {
@@ -445,23 +475,40 @@
                 setIsSaving(false);
             };
 
-            const handleReset = () => {
-                setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '' });
-                setDynamicSizes([]); setDynamicCats([]); setCustomSizeInput(''); setCustomCatInput(''); setSearchQuery('');
-                setMode('new'); setFormStatus({ type: '', message: '' });
+            // Handle generate EANs in modal
+            const handleGenerateEANInModal = async () => {
+                if (!selectedVariantsGroup || selectedVariantsGroup.length === 0) return;
+                let eansGenerated = false;
+                const updatedVariants = selectedVariantsGroup.map(v => {
+                    if (!v['Variant Barcode']) {
+                        eansGenerated = true;
+                        return { ...v, 'Variant Barcode': generateRandomEAN13() };
+                    }
+                    return v;
+                });
+
+                if (!eansGenerated) { alert("Tous les produits ont déjà un EAN ! Imprimez les étiquettes."); return; }
+                
+                setSelectedVariantsGroup(updatedVariants);
+                addLog("Sauvegarde des EAN générés...", "info");
+                try {
+                    await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(updatedVariants) });
+                    addLog(`EANs sauvegardés pour ${updatedVariants[0].Handle}`, 'success');
+                    fetchSheetData();
+                } catch(e) {}
             };
 
             // IMPRESSION GESTION
             const getLabelsToPrint = () => {
                 const labels = [];
-                if (showModal && selectedVariantsGroup) {
+                if (showModal && selectedVariantsGroup && selectedVariantsGroup.length > 0) {
                     selectedVariantsGroup.forEach(v => {
                         const qty = parseInt(v['Variant Inventory Qty'], 10) || 0;
                         for(let i=0; i<qty; i++) {
                             labels.push({ title: v.Title || selectedVariantsGroup[0].Title, size: v['Option1 Value'], color: v['Option2 Value'], ean: v['Variant Barcode'], price: v['Variant Price'] });
                         }
                     });
-                } else {
+                } else if (formData && formData.sizes && formData.colors) {
                     formData.sizes.forEach(s => {
                         formData.colors.forEach(c => {
                             const key = `${s}-${c}`;
@@ -475,7 +522,14 @@
                 }
                 return labels;
             };
+
             const labelsToPrint = getLabelsToPrint();
+            
+            // Recompute values for modal
+            const totalStock = selectedVariantsGroup ? selectedVariantsGroup.reduce((sum, v) => sum + (parseInt(v['Variant Inventory Qty'], 10) || 0), 0) : 0;
+            const uniqueColors = selectedVariantsGroup ? [...new Set(selectedVariantsGroup.map(v => v['Option2 Value']).filter(Boolean))] : [];
+            const uniqueSizes = selectedVariantsGroup ? [...new Set(selectedVariantsGroup.map(v => v['Option1 Value']).filter(Boolean))] : [];
+            const displayPrice = selectedVariantsGroup && selectedVariantsGroup[0] ? selectedVariantsGroup[0]['Variant Price'] || '0.00' : '0.00';
 
             if (!isLoggedIn) {
                 return (
@@ -529,13 +583,13 @@
                                         <span className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md font-bold border border-amber-200">
                                             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div> Synchronisation...
                                         </span>
-                                    ) : fileData.length > 0 ? (
+                                    ) : fileData && fileData.length > 0 ? (
                                         <span className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-0.5 rounded-md font-bold border border-green-200 shadow-sm animate-fade-in">
-                                            <IconCheck className="w-3 h-3" /> Drive Connecté ({fileData.length} logs)
+                                            <IconCheck className="w-3 h-3" /> Connecté ({fileData.length} var.)
                                         </span>
                                     ) : (
                                         <span className="flex items-center gap-1 bg-stone-100 text-stone-500 px-2 py-0.5 rounded-md font-bold border border-stone-200">
-                                            En attente...
+                                            Connecté (0 var.)
                                         </span>
                                     )}
                                 </div>
@@ -555,7 +609,7 @@
                                 <input 
                                     type="text" 
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleGlobalSearch(e); }}
                                     placeholder="Scanner Code Barre, SKU ou taper Nom..." 
                                     className="w-full pl-11 pr-4 py-3 sm:py-4 border-2 border-stone-200 rounded-xl focus:border-stone-900 focus:ring-0 outline-none text-base sm:text-lg font-bold text-stone-800 transition-colors"
@@ -566,29 +620,8 @@
                                     Rechercher
                                 </button>
                                 <button onClick={handleCreateDirect} className="flex-1 sm:flex-none px-4 sm:px-6 py-3 sm:py-4 bg-yellow-400 hover:bg-yellow-500 text-stone-900 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm sm:text-base">
-                                    <IconPlus className="w-4 h-4 sm:w-5 sm:h-5"/> Créer
+                                    <IconPlus className="w-4 h-4 sm:w-5 sm:h-5"/> Créer Direct
                                 </button>
-                            </div>
-                        </div>
-                        
-                        {/* Filtre par date d'historique */}
-                        <div className="mt-4 pt-4 border-t border-stone-100 flex flex-wrap items-center gap-3">
-                            <span className="text-sm font-bold text-stone-500 flex items-center gap-1.5"><IconCalendar className="w-4 h-4"/> Filtrer l'historique :</span>
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                <input 
-                                    type="date" 
-                                    value={filterDate}
-                                    onChange={(e) => setFilterDate(e.target.value)}
-                                    className="flex-1 sm:flex-none px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-stone-900 outline-none bg-stone-50 font-medium text-stone-700"
-                                />
-                                <button onClick={handleGlobalSearch} className="px-4 py-2 bg-stone-800 hover:bg-black text-white font-bold rounded-lg transition-colors text-sm shadow-sm">
-                                    Filtrer
-                                </button>
-                                {filterDate && (
-                                    <button onClick={() => { setFilterDate(''); setSearchQuery(''); }} className="px-2 py-2 text-stone-400 hover:text-red-500 transition-colors" title="Effacer le filtre">
-                                        <IconX className="w-5 h-5" />
-                                    </button>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -619,9 +652,9 @@
                                             <div>
                                                 <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1 flex justify-between items-center">
                                                     Handle (Lien url)
-                                                    {handleExists && mode === 'new' && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold animate-pulse">DÉJÀ PRIS</span>}
+                                                    {handleExists && mode === 'new' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold animate-pulse">DÉJÀ PRIS</span>}
                                                 </label>
-                                                <input type="text" name="Handle" value={formData.Handle} onChange={handleInputChange} placeholder="veste-coco" className={`w-full px-3 py-2 border ${handleExists && mode==='new' ? 'border-red-400 bg-red-50 text-red-900' : 'border-stone-300 bg-white'} rounded-lg focus:ring-2 focus:ring-stone-900 outline-none text-sm`} required />
+                                                <input type="text" name="Handle" value={formData.Handle} onChange={handleInputChange} placeholder="veste-coco" className={`w-full px-3 py-2 border ${handleExists && mode==='new' ? 'border-amber-400 bg-amber-50' : 'border-stone-300 bg-white'} rounded-lg focus:ring-2 focus:ring-stone-900 outline-none text-sm`} required />
                                             </div>
                                             <div>
                                                 <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">SKU Base / Réf Fabricant</label>
@@ -630,17 +663,22 @@
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">Description</label>
-                                            <textarea name="Body" value={formData.Body} onChange={handleInputChange} rows="3" placeholder="Description du vêtement..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none custom-scrollbar text-sm bg-white"></textarea>
+                                            <div className="flex justify-between items-center mb-1 mt-2">
+                                                <label className="block text-xs sm:text-sm font-medium text-stone-700">Description (HTML autorisé)</label>
+                                                <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingAI} className="text-xs flex items-center gap-1 text-purple-700 hover:text-purple-900 bg-purple-100 px-2 py-1 rounded border border-purple-300 transition-colors font-bold shadow-sm">
+                                                    {isGeneratingAI ? <div className="w-3 h-3 rounded-full border-2 border-purple-600 border-t-transparent animate-spin"></div> : <IconSparkles className="w-3 h-3"/>} Rédiger IA
+                                                </button>
+                                            </div>
+                                            <textarea name="Body" value={formData.Body} onChange={handleInputChange} rows="3" placeholder="<p>Une magnifique veste...</p>" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none custom-scrollbar text-sm bg-white"></textarea>
                                         </div>
 
                                         <div className="grid grid-cols-1 gap-4">
                                             <div>
-                                                <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1 flex justify-between">Tags (Historique intelligent)</label>
+                                                <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">Tags (Historique intelligent)</label>
                                                 <input type="text" name="Tags" value={formData.Tags} onChange={handleInputChange} placeholder="lavable, ete, promo..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none text-sm bg-white" />
                                                 {existingTags.length > 0 && (
                                                     <div className="flex flex-wrap gap-1.5 mt-2 max-h-24 overflow-y-auto custom-scrollbar p-2 bg-white border border-stone-200 rounded-lg">
-                                                        {existingTags.filter(t => !formData.Tags.includes(t)).map(tag => (
+                                                        {existingTags.filter(t => !(formData.Tags || '').includes(t)).map(tag => (
                                                             <button type="button" key={tag} onClick={() => handleAddTag(tag)} className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] sm:text-xs rounded border border-stone-200 transition-colors truncate max-w-[150px]" title={tag}>
                                                                 + {tag}
                                                             </button>
@@ -732,9 +770,9 @@
                                         ) : (
                                             <div className="space-y-4 mt-6 animate-fade-in">
                                                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end border-b border-stone-200 pb-3 gap-3">
-                                                    <h4 className="font-bold text-stone-800 text-sm uppercase tracking-wide">Grille des Quantités & EAN</h4>
+                                                    <h4 className="font-bold text-stone-800 text-sm uppercase tracking-wide">Grille Quantités & EAN</h4>
                                                     <button type="button" onClick={handleGenerateEANs} className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-lg text-xs font-bold transition-colors w-full sm:w-auto shadow-sm">
-                                                        <IconBarcode className="w-4 h-4" /> Générer les EAN
+                                                        <IconBarcode className="w-4 h-4" /> Générer Auto-EAN
                                                     </button>
                                                 </div>
                                                 
@@ -752,7 +790,7 @@
                                                                             <label className="text-xs font-bold text-stone-500 truncate">{size}</label>
                                                                             <input type="number" min="0" placeholder="Qté" className="w-14 sm:w-16 px-1 py-1 border border-stone-300 rounded focus:ring-2 focus:ring-stone-900 outline-none text-center font-bold text-blue-700 text-xs sm:text-sm bg-white shadow-inner" value={formData.quantities[key] !== undefined ? formData.quantities[key] : ''} onChange={(e) => setFormData(prev => ({ ...prev, quantities: { ...prev.quantities, [key]: e.target.value } }))} />
                                                                         </div>
-                                                                        <input type="text" placeholder="Code EAN13" className="w-full px-1 py-1 text-[10px] font-mono border border-stone-300 rounded text-stone-600 bg-white focus:ring-1 focus:ring-blue-500 outline-none" value={formData.eans[key] || ''} onChange={(e) => setFormData(prev => ({ ...prev, eans: { ...prev.eans, [key]: e.target.value } }))} />
+                                                                        <input type="text" placeholder="EAN" className="w-full px-1 py-1 text-[10px] font-mono border border-stone-300 rounded text-stone-600 bg-white focus:ring-1 focus:ring-blue-500 outline-none" value={formData.eans[key] || ''} onChange={(e) => setFormData(prev => ({ ...prev, eans: { ...prev.eans, [key]: e.target.value } }))} />
                                                                     </div>
                                                                 )
                                                             })}
@@ -760,10 +798,9 @@
                                                     </div>
                                                 ))}
                                                 
-                                                {/* Bouton d'impression en bas de grille */}
                                                 {labelsToPrint.length > 0 && (
-                                                    <div className="pt-2 flex justify-end">
-                                                        <button type="button" onClick={() => window.print()} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-stone-800 hover:bg-black text-white rounded-xl font-bold shadow-md transition-colors text-sm">
+                                                    <div className="pt-2">
+                                                        <button type="button" onClick={() => window.print()} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-stone-800 hover:bg-black text-white rounded-xl font-bold shadow-md transition-colors text-sm ml-auto">
                                                             <IconPrinter className="w-5 h-5" /> Imprimer {labelsToPrint.length} étiquette(s)
                                                         </button>
                                                     </div>
@@ -797,7 +834,7 @@
                                     <div className="pt-2 pb-6">
                                         <button type="submit" disabled={isSaving} className={`w-full py-4 px-4 ${handleExists && mode === 'new' ? 'bg-amber-500 hover:bg-amber-600 text-stone-900' : 'bg-stone-900 hover:bg-stone-800 text-white'} rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-3 disabled:opacity-70 uppercase tracking-widest text-sm`}>
                                             {isSaving ? <div className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin"></div> : (mode === 'edit' ? <IconSave /> : <IconPlus />)}
-                                            {isSaving ? 'Envoi...' : (handleExists && mode === 'new' ? 'ATTENTION : Mettre à jour la fiche' : 'Sauvegarder Fiche')}
+                                            {isSaving ? 'Envoi...' : (handleExists && mode === 'new' ? 'ATTENTION : Mettre à jour' : 'Sauvegarder Fiche')}
                                         </button>
                                         {formStatus.message && <p className="text-center text-sm font-bold mt-3 text-stone-600">{formStatus.message}</p>}
                                     </div>
@@ -814,7 +851,7 @@
                                 {logs.length === 0 ? (
                                     <p className="text-sm text-stone-400 italic text-center mt-10">En attente d'actions.</p>
                                 ) : (
-                                    logs.reverse().map(log => (
+                                    [...logs].reverse().map(log => (
                                     <div key={log.id} className="text-sm border-l-2 pl-3 py-2 border-stone-200">
                                         <span className="text-xs text-stone-400 font-mono block mb-1">{log.time}</span>
                                         <span className={log.type === 'success' ? 'text-green-700 font-medium' : log.type === 'error' ? 'text-red-600 font-medium' : 'text-stone-700'}>
@@ -826,46 +863,13 @@
                             </div>
                         </div>
                     </div>
-                    {/* FENÊTRE DE VÉRIFICATION */}
+
+                    {/* FENÊTRE DE SCAN (Workflow Technicienne) */}
                     {showModal && (() => {
                         const totalStock = selectedVariantsGroup ? selectedVariantsGroup.reduce((sum, v) => sum + (parseInt(v['Variant Inventory Qty'], 10) || 0), 0) : 0;
                         const uniqueColors = selectedVariantsGroup ? [...new Set(selectedVariantsGroup.map(v => v['Option2 Value']).filter(Boolean))] : [];
                         const uniqueSizes = selectedVariantsGroup ? [...new Set(selectedVariantsGroup.map(v => v['Option1 Value']).filter(Boolean))] : [];
                         const displayPrice = selectedVariantsGroup && selectedVariantsGroup[0] ? selectedVariantsGroup[0]['Variant Price'] || '0.00' : '0.00';
-
-                        const handleGenerateEANInModal = async () => {
-                            if (!selectedVariantsGroup || selectedVariantsGroup.length === 0) return;
-                            let eansGenerated = false;
-                            const currentDate = new Date().toLocaleString('fr-FR');
-                            
-                            const updatedVariants = selectedVariantsGroup.map(v => {
-                                if (!v['Variant Barcode']) {
-                                    eansGenerated = true;
-                                    return { ...v, 'Variant Barcode': generateRandomEAN13(), 'Horodatage': currentDate };
-                                }
-                                return { ...v, 'Horodatage': currentDate };
-                            });
-
-                            if (!eansGenerated) { alert("Tous les produits de cette fiche ont déjà un EAN ! Imprimez les étiquettes."); return; }
-                            
-                            setSelectedVariantsGroup(updatedVariants);
-                            addLog("Sauvegarde des EAN générés...", "info");
-                            try {
-                                await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(updatedVariants) });
-                                addLog(`EANs sauvegardés pour ${updatedVariants[0].Handle}`, 'success');
-                                fetchSheetData();
-                            } catch(e) {}
-                        };
-
-                        const modalLabelsToPrint = [];
-                        if (selectedVariantsGroup) {
-                            selectedVariantsGroup.forEach(v => {
-                                const qty = parseInt(v['Variant Inventory Qty'], 10) || 0;
-                                for(let i=0; i<qty; i++) {
-                                    modalLabelsToPrint.push({ title: v.Title, size: v['Option1 Value'], color: v['Option2 Value'], ean: v['Variant Barcode'], price: v['Variant Price'] });
-                                }
-                            });
-                        }
 
                         return (
                         <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
@@ -908,8 +912,8 @@
                                                                     {v['Option2 Value'] || 'Défaut'} - <span className="bg-stone-100 px-1.5 py-0.5 rounded text-stone-600">{v['Option1 Value'] || 'TU'}</span>
                                                                 </span>
                                                                 {v['Variant Barcode'] ? 
-                                                                    <span className="text-[9px] sm:text-[10px] text-green-600 font-mono flex items-center gap-1 font-bold mt-1"><IconBarcode className="w-3 h-3"/> {v['Variant Barcode']}</span> :
-                                                                    <span className="text-[9px] sm:text-[10px] text-red-400 font-mono flex items-center gap-1 mt-1 font-bold">⚠️ EAN Manquant</span>
+                                                                    <span className="text-[9px] sm:text-[10px] text-stone-600 font-mono flex items-center gap-1 font-bold mt-1"><IconBarcode className="w-3 h-3 text-blue-500"/> {v['Variant Barcode']}</span> :
+                                                                    <span className="text-[9px] sm:text-[10px] text-amber-500 font-mono flex items-center gap-1 mt-1 font-bold">⚠️ EAN Manquant</span>
                                                                 }
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
@@ -923,14 +927,18 @@
                                             </div>
 
                                             <div className="flex flex-col gap-2 sm:gap-3 mt-4 sm:mt-6">
-                                                <button onClick={handleGenerateEANInModal} className="w-full flex justify-center items-center gap-2 px-4 py-3 sm:py-3.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 rounded-xl font-bold transition-colors text-sm sm:text-base">
-                                                    <IconBarcode className="w-5 h-5" /> 1. Générer les EAN manquants
-                                                </button>
                                                 <button 
                                                     onClick={() => {
                                                         const printContainer = document.getElementById('print-container');
                                                         if(printContainer) {
-                                                            const labelsHtml = modalLabelsToPrint.map(lbl => `
+                                                            const modalLabels = [];
+                                                            selectedVariantsGroup.forEach(v => {
+                                                                const qty = parseInt(v['Variant Inventory Qty'], 10) || 0;
+                                                                for(let i=0; i<qty; i++) {
+                                                                    modalLabels.push({ title: v.Title, size: v['Option1 Value'], color: v['Option2 Value'], ean: v['Variant Barcode'], price: v['Variant Price'] });
+                                                                }
+                                                            });
+                                                            const labelsHtml = modalLabels.map(lbl => `
                                                                 <div class="print-label">
                                                                     <div class="print-label-title">${lbl.title || 'PAM BOUTIQUE'}</div>
                                                                     <div class="print-label-info">${lbl.size} | ${lbl.color}</div>
@@ -945,11 +953,11 @@
                                                     disabled={totalStock === 0}
                                                     className="w-full px-4 py-3 sm:py-4 text-white bg-stone-900 hover:bg-black rounded-xl font-bold shadow-md transition-colors flex justify-center items-center gap-2 disabled:opacity-50 text-sm sm:text-base"
                                                 >
-                                                    <IconPrinter className="w-5 h-5"/> 2. Imprimer {totalStock} étiquettes
+                                                    <IconPrinter className="w-5 h-5"/> Imprimer {totalStock} étiquettes
                                                 </button>
                                                 
                                                 <div className="flex justify-center mt-3">
-                                                    <button onClick={confirmSearch} className="text-sm text-stone-500 hover:text-stone-900 font-bold underline bg-stone-100 px-4 py-2 rounded-lg transition-colors">✏️ Éditer la fiche (Prix, Tailles, Stock...)</button>
+                                                    <button onClick={confirmSearch} className="text-sm text-stone-500 hover:text-stone-900 font-bold underline bg-stone-100 px-4 py-2 rounded-lg transition-colors">✏️ Éditer la fiche (Prix, Tailles, EAN, Stock...)</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1001,3 +1009,5 @@
     </script>
 </body>
 </html>
+
+
