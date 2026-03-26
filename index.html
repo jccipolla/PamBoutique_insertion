@@ -138,19 +138,24 @@
                 if (webhookUrl && isLoggedIn) fetchSheetData();
             }, [isLoggedIn, webhookUrl]);
 
+            // Fetch classique réparé (sans paramètre anti-cache pour éviter l'erreur CORS Google Apps Script)
             const fetchSheetData = async () => {
                 setIsLoading(true);
                 try {
-                    const cacheBusterUrl = webhookUrl + '?t=' + new Date().getTime();
-                    const response = await fetch(cacheBusterUrl);
+                    const response = await fetch(webhookUrl);
                     const textData = await response.text();
-                    let data = JSON.parse(textData);
+                    let data;
+                    try {
+                        data = JSON.parse(textData);
+                    } catch (e) {
+                        throw new Error("Erreur format");
+                    }
                     if (Array.isArray(data)) {
                         setFileData(data);
-                        addLog(`Connecté : ${data.length} variantes.`, 'success');
+                        addLog(`Connecté : ${data.length} variantes synchronisées.`, 'success');
                     }
                 } catch (error) {
-                    addLog(`Erreur de connexion.`, 'error');
+                    addLog(`Erreur de connexion avec le serveur.`, 'error');
                 }
                 setIsLoading(false);
             };
@@ -319,6 +324,7 @@
                     Body: String(firstVariant['Body (HTML)'] || ''),
                     Type: String(firstVariant['Type'] || ''),
                     Tags: String(firstVariant['Tags'] || ''),
+                    // RETOUR DU SPLIT('-')[0] : Coupe la référence "REF-COCO-M-ROSE" pour ne garder que "REF-COCO" (Base)
                     'Variant SKU': firstVariant['Variant SKU'] ? String(firstVariant['Variant SKU']).split('-')[0] : '', 
                     'Variant Price': firstVariant['Variant Price'] || '',
                     'Variant Compare At Price': firstVariant['Variant Compare At Price'] || '',
@@ -417,7 +423,16 @@
                     addLog(`Enregistré : ${formData.Handle} (${payloads.length} var.)`, 'success');
                     setFormStatus({ type: 'success', message: 'Sauvegardé avec succès !' });
                     
-                    setTimeout(() => { fetchSheetData(); }, 1500);
+                    // MàJ locale
+                    setFileData(prev => {
+                        const newFileData = [...(prev || [])];
+                        payloads.forEach(p => {
+                            const idx = newFileData.findIndex(f => String(f.Handle) === String(p.Handle) && String(f['Option1 Value']) === String(p['Option1 Value']) && String(f['Option2 Value']) === String(p['Option2 Value']));
+                            if (idx > -1) newFileData[idx] = p;
+                            else newFileData.push(p);
+                        });
+                        return newFileData;
+                    });
                     
                 } catch (error) {
                     addLog(`Erreur de sauvegarde`, 'error');
@@ -584,7 +599,7 @@
 
                                         <div className="grid grid-cols-1 gap-4">
                                             <div>
-                                                <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">Tags (Historique intelligent)</label>
+                                                <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1 flex justify-between">Tags (Historique intelligent)</label>
                                                 <input type="text" name="Tags" value={formData.Tags} onChange={handleInputChange} placeholder="lavable, ete, promo..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none text-sm bg-white" />
                                                 {existingTags.length > 0 && (
                                                     <div className="flex flex-wrap gap-1.5 mt-2 max-h-24 overflow-y-auto custom-scrollbar p-2 bg-white border border-stone-200 rounded-lg">
@@ -710,8 +725,8 @@
                                                 
                                                 {/* Bouton d'impression en bas de grille */}
                                                 {labelsToPrint.length > 0 && (
-                                                    <div className="pt-2">
-                                                        <button type="button" onClick={() => window.print()} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-stone-800 hover:bg-black text-white rounded-xl font-bold shadow-md transition-colors text-sm ml-auto">
+                                                    <div className="pt-2 flex justify-end">
+                                                        <button type="button" onClick={() => window.print()} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-stone-800 hover:bg-black text-white rounded-xl font-bold shadow-md transition-colors text-sm">
                                                             <IconPrinter className="w-5 h-5" /> Imprimer {labelsToPrint.length} étiquette(s)
                                                         </button>
                                                     </div>
@@ -745,7 +760,7 @@
                                     <div className="pt-2 pb-6">
                                         <button type="submit" disabled={isSaving} className={`w-full py-4 px-4 ${handleExists && mode === 'new' ? 'bg-amber-500 hover:bg-amber-600 text-stone-900' : 'bg-stone-900 hover:bg-stone-800 text-white'} rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-3 disabled:opacity-70 uppercase tracking-widest text-sm`}>
                                             {isSaving ? <div className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin"></div> : (mode === 'edit' ? <IconSave /> : <IconPlus />)}
-                                            {isSaving ? 'Envoi...' : (handleExists && mode === 'new' ? 'ATTENTION : Mettre à jour' : 'Sauvegarder Fiche')}
+                                            {isSaving ? 'Envoi...' : (handleExists && mode === 'new' ? 'ATTENTION : Mettre à jour la fiche' : 'Sauvegarder Fiche')}
                                         </button>
                                         {formStatus.message && <p className="text-center text-sm font-bold mt-3 text-stone-600">{formStatus.message}</p>}
                                     </div>
@@ -856,8 +871,8 @@
                                                                     {v['Option2 Value'] || 'Défaut'} - <span className="bg-stone-100 px-1.5 py-0.5 rounded text-stone-600">{v['Option1 Value'] || 'TU'}</span>
                                                                 </span>
                                                                 {v['Variant Barcode'] ? 
-                                                                    <span className="text-[10px] sm:text-[11px] text-stone-600 font-mono flex items-center gap-1 font-bold mt-1"><IconBarcode className="w-3 h-3 text-blue-500"/> {v['Variant Barcode']}</span> :
-                                                                    <span className="text-[9px] sm:text-[10px] text-amber-500 font-mono flex items-center gap-1 mt-1 font-bold">⚠️ EAN Manquant</span>
+                                                                    <span className="text-[9px] sm:text-[10px] text-green-600 font-mono flex items-center gap-1 font-bold mt-1"><IconBarcode className="w-3 h-3"/> {v['Variant Barcode']}</span> :
+                                                                    <span className="text-[9px] sm:text-[10px] text-red-400 font-mono flex items-center gap-1 mt-1 font-bold">⚠️ EAN Manquant</span>
                                                                 }
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
@@ -871,7 +886,7 @@
                                             </div>
 
                                             <div className="flex flex-col gap-2 sm:gap-3 mt-4 sm:mt-6">
-                                                <button onClick={handleGenerateEANInModal} className="w-full flex justify-center items-center gap-2 px-4 py-3 sm:py-3.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 rounded-xl font-bold transition-colors text-sm sm:text-base shadow-sm">
+                                                <button onClick={handleGenerateEANInModal} className="w-full flex justify-center items-center gap-2 px-4 py-3 sm:py-3.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-800 rounded-xl font-bold transition-colors text-sm sm:text-base">
                                                     <IconBarcode className="w-5 h-5" /> 1. Générer les EAN manquants
                                                 </button>
                                                 <button 
@@ -897,9 +912,30 @@
                                                 </button>
                                                 
                                                 <div className="flex justify-center mt-3">
-                                                    <button onClick={loadProductToForm} className="text-sm text-stone-500 hover:text-stone-900 font-bold underline bg-stone-100 px-4 py-2 rounded-lg transition-colors">✏️ Éditer la fiche (Prix, Tailles, Stock...)</button>
+                                                    <button onClick={confirmSearch} className="text-sm text-stone-500 hover:text-stone-900 font-bold underline bg-stone-100 px-4 py-2 rounded-lg transition-colors">✏️ Éditer la fiche (Prix, Tailles, Stock...)</button>
                                                 </div>
                                             </div>
+                                        </div>
+                                    ) : searchResults.length > 1 ? (
+                                        <div>
+                                            <p className="text-stone-600 mb-4 text-center text-sm">Plusieurs produits correspondent.</p>
+                                            <div className="space-y-3 mb-6 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                                                {searchResults.map((group, idx) => (
+                                                    <div key={idx} onClick={() => setSelectedVariantsGroup(group)} className="flex items-center gap-4 p-3 sm:p-4 border border-stone-200 rounded-xl hover:border-stone-900 hover:bg-stone-50 cursor-pointer transition-all bg-white shadow-sm">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-stone-100 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border border-stone-200">
+                                                            {group[0]['Photo Interne'] ? <img src={group[0]['Photo Interne']} className="w-full h-full object-cover" /> : group[0]['Image Src'] ? <img src={group[0]['Image Src']} className="w-full h-full object-cover" /> : <IconImage className="text-stone-400 w-5 h-5" />}
+                                                        </div>
+                                                        <div className="overflow-hidden flex-1">
+                                                            <p className="font-bold text-stone-900 truncate uppercase text-sm sm:text-base">{group[0].Title || 'Sans titre'}</p>
+                                                            <p className="text-[10px] sm:text-xs text-stone-500 font-mono truncate">Réf: {group[0]['Variant SKU'] || group[0].Handle}</p>
+                                                        </div>
+                                                        <div className="shrink-0 text-right">
+                                                            <span className="bg-stone-100 text-stone-600 px-2 py-1 rounded text-xs font-bold">{group.length} var.</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button onClick={() => setShowModal(false)} className="w-full px-4 py-3 border border-stone-300 rounded-xl hover:bg-stone-50 font-bold text-stone-700 transition-colors text-sm sm:text-base">Annuler</button>
                                         </div>
                                     ) : (
                                         <div className="text-center py-6">
