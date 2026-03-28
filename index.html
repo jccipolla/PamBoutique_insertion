@@ -60,16 +60,13 @@
         const IconCalendar = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
         const IconDownload = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 
-        const LogoPam = ({ className = "w-16 h-16" }) => (
-            <img
-                src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340"
-                alt="Pam Boutique"
-                className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`}
-                style={{ maxWidth: '100%', maxHeight: '100%' }}
-                onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true";
-                }}
+        const LogoPam = ({ className = "" }) => (
+            <img 
+                src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" 
+                alt="Pam Boutique" 
+                style={{ width: '60px', height: '60px' }}
+                className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`} 
+                onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true"; }} 
             />
         );
 
@@ -405,6 +402,7 @@
         // COMPOSANT PRINCIPAL : App
         // =============================================
         function App() {
+            // URL DE DÉPLOIEMENT DU SCRIPT
             const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
 
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
@@ -455,12 +453,16 @@
                 setIsLoading(true);
                 try {
                     const r = await fetch(webhookUrl + '?t=' + Date.now());
+                    if (!r.ok) throw new Error("Erreur serveur");
                     const d = await r.json();
                     if (Array.isArray(d)) {
                         setFileData(d);
                         addLog(`Synchronisé : ${d.length} lignes.`, 'success');
                     }
-                } catch (error) { addLog(`Erreur connexion Sheets.`, 'error'); }
+                } catch (error) { 
+                    console.error(error);
+                    addLog(`Erreur connexion Sheets.`, 'error'); 
+                }
                 setIsLoading(false);
             };
 
@@ -614,7 +616,10 @@
                     fetchSheetData();
                     setMode('new');
                     setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '' });
-                } catch (e) { addLog("Erreur sauvegarde.", "error"); }
+                } catch (e) { 
+                    console.error(e);
+                    addLog("Erreur sauvegarde.", "error"); 
+                }
                 setIsSaving(false);
             };
 
@@ -622,7 +627,7 @@
                 return (
                     <div className="min-h-screen p-4 flex items-center justify-center bg-stone-100">
                         <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-8 text-center border">
-                            <LogoPam className="w-12 h-12 mx-auto mb-4" />
+                            <LogoPam className="mx-auto mb-6" />
                             <h1 className="text-xl font-bold uppercase tracking-wider mb-2">PAM STOCK</h1>
                             <p className="text-stone-400 mb-6 text-sm">Veuillez indiquer votre prénom.</p>
                             <form onSubmit={(e) => { e.preventDefault(); if (userName.trim()) { setIsLoggedIn(true); localStorage.setItem('pam_username', userName.trim()); } }}>
@@ -641,7 +646,7 @@
                         
                         <header className="bg-white shadow-sm rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border border-stone-100 sticky top-2 z-30">
                             <div className="flex items-center gap-3 w-full sm:w-auto">
-                                <LogoPam className="w-12 h-12" />
+                                <LogoPam className="" />
                                 <div>
                                     <h1 className="text-lg font-bold text-stone-900 pam-boutique-title uppercase leading-none">Pam Boutique</h1>
                                     <div className="flex items-center gap-2 text-[10px] sm:text-xs mt-1 font-bold text-stone-400">
