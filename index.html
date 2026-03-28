@@ -68,6 +68,14 @@
         const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '34', '36', '38', '40', '42', '44', '46', '48'];
         const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Imprimé Léo', 'Camel', 'Kaki', 'Marine', 'Doré', 'Argenté', 'Multicolore', 'Marron', 'Bordeaux'];
 
+        const TAGS_TEXTILES = {
+            'Matières': ['100% Coton', '100% Polyester', '100% Viscose', '100% Lin', '100% Laine', '100% Soie', '100% Bambou', '100% Modal', '100% Tencel', '100% Nylon', '100% Acrylique', '100% Polyamide', 'Cachemire', 'Mohair', 'Angora', 'Lycra/Spandex', 'Coton/Polyester', 'Coton/Élasthanne', 'Viscose/Polyester', 'Polyester/Élasthanne', 'Laine/Acrylique', 'Velours', 'Satin', 'Denim', 'Jersey', 'Maille', 'Broderie', 'Dentelle'],
+            'Entretien': ['Lavage 30°C', 'Lavage 40°C', 'Lavage 60°C', 'Lavage 95°C', 'Lavage main', 'Ne pas laver', 'Lavage délicat', 'Ne pas essorer', 'Ne pas sécher en machine', 'Séchage à plat', 'Séchage tambour autorisé', 'Séchage tambour doux', 'Blanchiment autorisé', 'Ne pas javelliser', 'Repassage 110°C', 'Repassage 150°C', 'Repassage 200°C', 'Repassage vapeur', 'Ne pas repasser', 'Nettoyage à sec uniquement'],
+            'Caractéristiques': ['Extensible', 'Non extensible', 'Oversize', 'Slim fit', 'Doublé', 'Non doublé', 'Imperméable', 'Coupe-vent', 'Thermique', 'Transparent', 'Semi-transparent', 'Avec poches', 'Sans poches', 'Taille haute', 'Taille basse', 'Décolleté V', 'Col rond', 'Col montant', 'Manches courtes', 'Manches longues', 'Sans manches', 'Fermeture zip', 'Fermeture boutons'],
+            'Saisonnalité': ['Printemps/Été', 'Automne/Hiver', 'Toutes saisons', 'Été', 'Hiver'],
+            'Promotions': ['Nouveauté', 'Bestseller', 'Promo', 'Dernières pièces', 'Exclusivité'],
+        };
+
         // EAN-13 valide
         const generateRandomEAN13 = () => {
             let ean = "200" + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
@@ -1060,15 +1068,37 @@
                                             <textarea name="Body" value={formData.Body} onChange={handleInputChange} rows="3" placeholder="<p>Une magnifique veste...</p>" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none custom-scrollbar text-sm bg-white"></textarea>
                                         </div>
                                         <div>
-                                            <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">Tags (Historique intelligent)</label>
-                                            <input type="text" name="Tags" value={formData.Tags} onChange={handleInputChange} placeholder="lavable, ete, promo..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none text-sm bg-white" />
-                                            {existingTags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5 mt-2 max-h-24 overflow-y-auto custom-scrollbar p-2 bg-white border border-stone-200 rounded-lg">
-                                                    {existingTags.filter(t => !(formData.Tags || '').includes(t)).map(tag => (
-                                                        <button type="button" key={tag} onClick={() => handleAddTag(tag)} className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] sm:text-xs rounded border border-stone-200 transition-colors truncate max-w-[150px]" title={tag}>
-                                                            + {tag}
-                                                        </button>
-                                                    ))}
+                                            <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">Tags</label>
+                                            <input type="text" name="Tags" value={formData.Tags} onChange={handleInputChange} placeholder="100% Coton, Lavage 30°C, Nouveauté..." className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none text-sm bg-white" />
+
+                                            {/* Tags textiles prédéfinis */}
+                                            <div className="mt-2 space-y-2">
+                                                {Object.entries(TAGS_TEXTILES).map(([categorie, tags]) => (
+                                                    <div key={categorie}>
+                                                        <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1">{categorie}</div>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {tags.filter(t => !(formData.Tags || '').includes(t)).map(tag => (
+                                                                <button type="button" key={tag} onClick={() => handleAddTag(tag)}
+                                                                    className="px-2 py-1 bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[10px] sm:text-xs rounded-full transition-colors font-medium">
+                                                                    + {tag}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Historique tags existants dans la base */}
+                                            {existingTags.filter(t => !Object.values(TAGS_TEXTILES).flat().includes(t) && !(formData.Tags || '').includes(t)).length > 0 && (
+                                                <div className="mt-2">
+                                                    <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wide mb-1">Déjà utilisés dans la base</div>
+                                                    <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto custom-scrollbar p-2 bg-white border border-stone-200 rounded-lg">
+                                                        {existingTags.filter(t => !Object.values(TAGS_TEXTILES).flat().includes(t) && !(formData.Tags || '').includes(t)).map(tag => (
+                                                            <button type="button" key={tag} onClick={() => handleAddTag(tag)} className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] sm:text-xs rounded border border-stone-200 transition-colors truncate max-w-[150px]" title={tag}>
+                                                                + {tag}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
