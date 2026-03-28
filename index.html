@@ -100,6 +100,87 @@
         const formatDateInput = (d) => d.toISOString().split('T')[0];
 
         // =============================================
+        // COMPOSANT : TAG INPUT AUTOCOMPLETE
+        // =============================================
+        function TagInput({ value, onChange, allSuggestions }) {
+            const [tagInput, setTagInput] = useState('');
+            const [showSuggestions, setShowSuggestions] = useState(false);
+            const tagRef = useRef(null);
+
+            const currentTags = (value || '').split(',').map(t => t.trim()).filter(Boolean);
+
+            const suggestions = tagInput.length >= 1
+                ? allSuggestions.filter(t =>
+                    t.toLowerCase().includes(tagInput.toLowerCase()) &&
+                    !currentTags.includes(t)
+                ).slice(0, 8)
+                : [];
+
+            const addTag = (tag) => {
+                const trimmed = tag.trim();
+                if (!trimmed || currentTags.includes(trimmed)) return;
+                onChange([...currentTags, trimmed].join(', '));
+                setTagInput('');
+                setShowSuggestions(false);
+            };
+
+            const removeTag = (tag) => {
+                onChange(currentTags.filter(t => t !== tag).join(', '));
+            };
+
+            useEffect(() => {
+                const handleClick = (e) => { if (tagRef.current && !tagRef.current.contains(e.target)) setShowSuggestions(false); };
+                document.addEventListener('mousedown', handleClick);
+                return () => document.removeEventListener('mousedown', handleClick);
+            }, []);
+
+            return (
+                <div ref={tagRef} className="relative">
+                    {currentTags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {currentTags.map(tag => (
+                                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-800 border border-pink-200 rounded-full text-xs font-medium">
+                                    {tag}
+                                    <button type="button" onClick={() => removeTag(tag)} className="text-pink-400 hover:text-pink-700 font-bold leading-none">×</button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    <input
+                        type="text"
+                        value={tagInput}
+                        onChange={e => { setTagInput(e.target.value); setShowSuggestions(true); }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); if (suggestions.length > 0) addTag(suggestions[0]); else if (tagInput.trim()) addTag(tagInput); }
+                            if (e.key === 'Escape') setShowSuggestions(false);
+                        }}
+                        placeholder="Taper pour chercher un tag..."
+                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-pink-400 outline-none text-sm bg-white"
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden">
+                            {suggestions.map(tag => (
+                                <button type="button" key={tag} onMouseDown={() => addTag(tag)}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-pink-50 hover:text-pink-800 transition-colors border-b border-stone-100 last:border-0">
+                                    <span className="text-pink-500 font-bold mr-1">+</span> {tag}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {showSuggestions && tagInput.length >= 1 && suggestions.length === 0 && (
+                        <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden">
+                            <button type="button" onMouseDown={() => addTag(tagInput)}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-pink-50 hover:text-pink-800 transition-colors">
+                                <span className="text-pink-500 font-bold mr-1">+</span> Ajouter "{tagInput}"
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // =============================================
         // COMPOSANT : RAPPORT HEBDOMADAIRE
         // =============================================
         function WeeklyReport({ fileData, webhookUrl, userName }) {
@@ -1069,89 +1150,11 @@
                                         </div>
                                         <div>
                                             <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-1">Tags</label>
-                                            {(() => {
-                                                const allTagsSuggestions = [...new Set([...Object.values(TAGS_TEXTILES).flat(), ...existingTags])];
-                                                const currentTags = (formData.Tags || '').split(',').map(t => t.trim()).filter(Boolean);
-                                                const [tagInput, setTagInput] = React.useState('');
-                                                const [showSuggestions, setShowSuggestions] = React.useState(false);
-                                                const tagRef = React.useRef(null);
-
-                                                const suggestions = tagInput.length >= 1
-                                                    ? allTagsSuggestions.filter(t =>
-                                                        t.toLowerCase().includes(tagInput.toLowerCase()) &&
-                                                        !currentTags.includes(t)
-                                                    ).slice(0, 8)
-                                                    : [];
-
-                                                const addTag = (tag) => {
-                                                    const trimmed = tag.trim();
-                                                    if (!trimmed || currentTags.includes(trimmed)) return;
-                                                    const newTags = [...currentTags, trimmed].join(', ');
-                                                    setFormData(prev => ({ ...prev, Tags: newTags }));
-                                                    setTagInput('');
-                                                    setShowSuggestions(false);
-                                                };
-
-                                                const removeTag = (tag) => {
-                                                    const newTags = currentTags.filter(t => t !== tag).join(', ');
-                                                    setFormData(prev => ({ ...prev, Tags: newTags }));
-                                                };
-
-                                                React.useEffect(() => {
-                                                    const handleClick = (e) => { if (tagRef.current && !tagRef.current.contains(e.target)) setShowSuggestions(false); };
-                                                    document.addEventListener('mousedown', handleClick);
-                                                    return () => document.removeEventListener('mousedown', handleClick);
-                                                }, []);
-
-                                                return (
-                                                    <div ref={tagRef} className="relative">
-                                                        {/* Chips tags sélectionnés */}
-                                                        {currentTags.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1.5 mb-2">
-                                                                {currentTags.map(tag => (
-                                                                    <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-100 text-pink-800 border border-pink-200 rounded-full text-xs font-medium">
-                                                                        {tag}
-                                                                        <button type="button" onClick={() => removeTag(tag)} className="text-pink-400 hover:text-pink-700 font-bold leading-none">×</button>
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {/* Input */}
-                                                        <input
-                                                            type="text"
-                                                            value={tagInput}
-                                                            onChange={e => { setTagInput(e.target.value); setShowSuggestions(true); }}
-                                                            onFocus={() => setShowSuggestions(true)}
-                                                            onKeyDown={e => {
-                                                                if (e.key === 'Enter') { e.preventDefault(); if (suggestions.length > 0) addTag(suggestions[0]); else if (tagInput.trim()) addTag(tagInput); }
-                                                                if (e.key === 'Escape') setShowSuggestions(false);
-                                                            }}
-                                                            placeholder="Taper pour chercher un tag..."
-                                                            className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-pink-400 outline-none text-sm bg-white"
-                                                        />
-                                                        {/* Dropdown suggestions */}
-                                                        {showSuggestions && suggestions.length > 0 && (
-                                                            <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden">
-                                                                {suggestions.map(tag => (
-                                                                    <button type="button" key={tag} onMouseDown={() => addTag(tag)}
-                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-pink-50 hover:text-pink-800 transition-colors border-b border-stone-100 last:border-0">
-                                                                        <span className="text-pink-500 font-bold mr-1">+</span> {tag}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {/* Si aucune suggestion mais texte tapé */}
-                                                        {showSuggestions && tagInput.length >= 1 && suggestions.length === 0 && (
-                                                            <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden">
-                                                                <button type="button" onMouseDown={() => addTag(tagInput)}
-                                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-pink-50 hover:text-pink-800 transition-colors">
-                                                                    <span className="text-pink-500 font-bold mr-1">+</span> Ajouter "{tagInput}"
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
+                                            <TagInput
+                                                value={formData.Tags}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, Tags: val }))}
+                                                allSuggestions={[...new Set([...Object.values(TAGS_TEXTILES).flat(), ...existingTags])]}
+                                            />
                                         </div>
                                         <div className="pt-2">
                                             <label className="block text-xs sm:text-sm font-medium text-stone-700 mb-2">Catégorie(s)</label>
