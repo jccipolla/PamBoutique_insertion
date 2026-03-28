@@ -42,11 +42,12 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- Icônes (SVG Inline pour compatibilité totale) ---
+        // --- Icônes ---
         const IconSearch = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
         const IconPlus = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
         const IconSave = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
         const IconCheck = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const IconAlert = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
         const IconRefresh = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 0 20.49 15"/></svg>;
         const IconX = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
         const IconImage = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
@@ -60,22 +61,51 @@
         const IconDownload = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 
         const LogoPam = ({ className = "w-16 h-16" }) => (
-            <img src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" alt="Pam Boutique" className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`} />
+            <img src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" alt="Pam Boutique" className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`} onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true"; }} />
         );
 
         const CATEGORIES_DISPONIBLES = ['Vêtements', 'Vestes & Manteaux', 'Pulls & Gilets', 'Robes', 'Tops & T-shirts', 'Pantalons & Jeans', 'Accessoires'];
         const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '34', '36', '38', '40', '42', '44', '46', '48'];
         const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Imprimé Léo', 'Camel', 'Kaki', 'Marine', 'Doré', 'Argenté', 'Multicolore', 'Marron', 'Bordeaux'];
 
+        const generateRandomEAN13 = () => {
+            let ean = "200" + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+            let sum = 0;
+            for (let i = 0; i < 12; i++) { sum += parseInt(ean[i]) * (i % 2 === 0 ? 1 : 3); }
+            return ean + ((10 - (sum % 10)) % 10);
+        };
+
         const safeString = (val) => val != null ? String(val).toLowerCase().trim().replace(/[\s-]/g, '') : '';
+
+        const getMondayOfCurrentWeek = () => {
+            const now = new Date();
+            const day = now.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            const monday = new Date(now);
+            monday.setDate(now.getDate() + diff);
+            monday.setHours(0, 0, 0, 0);
+            return monday;
+        };
+
+        const formatDateInput = (d) => d.toISOString().split('T')[0];
 
         // =============================================
         // COMPOSANT : RAPPORT HEBDOMADAIRE
         // =============================================
-        function WeeklyReport({ fileData }) {
-            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0]);
-            const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+        function WeeklyReport({ fileData, webhookUrl, userName }) {
+            const monday = getMondayOfCurrentWeek();
+            const today = new Date();
+
+            const [dateFrom, setDateFrom] = useState(formatDateInput(monday));
+            const [dateTo, setDateTo] = useState(formatDateInput(today));
+            const [selected, setSelected] = useState(new Set());
             const [expanded, setExpanded] = useState(new Set());
+            const [toastMsg, setToastMsg] = useState('');
+
+            const showToast = (msg) => {
+                setToastMsg(msg);
+                setTimeout(() => setToastMsg(''), 3000);
+            };
 
             const allProducts = useMemo(() => {
                 if (!fileData || fileData.length === 0) return [];
@@ -85,7 +115,32 @@
                     if (!groups[handle]) groups[handle] = [];
                     groups[handle].push(row);
                 });
-                return Object.values(groups).map(variants => ({ ...variants[0], variants }));
+                return Object.values(groups).map(variants => {
+                    const first = variants[0];
+                    return {
+                        Handle: first.Handle || '',
+                        Title: first.Title || '',
+                        'Body (HTML)': first['Body (HTML)'] || '',
+                        Vendor: first.Vendor || 'PAM Boutique',
+                        'Product Category': first['Product Category'] || '',
+                        Type: first.Type || '',
+                        Tags: first.Tags || '',
+                        'Image Src': first['Image Src'] || '',
+                        'Photo Interne': first['Photo Interne'] || '',
+                        'Cost per item': first['Cost per item'] || '',
+                        'Date Ajout': first['Date Ajout'] || '',
+                        variants: variants.map(v => ({
+                            size: v['Option1 Value'] || 'TU',
+                            color: v['Option2 Value'] || 'Défaut',
+                            qty: parseInt(v['Variant Inventory Qty'], 10) || 0,
+                            ean: v['Variant Barcode'] || '',
+                            price: v['Variant Price'] || '',
+                            compareAt: v['Variant Compare At Price'] || '',
+                            sku: v['Variant SKU'] || '',
+                            grams: v['Variant Grams'] || '0',
+                        }))
+                    };
+                });
             }, [fileData]);
 
             const filteredProducts = useMemo(() => {
@@ -99,68 +154,240 @@
             }, [allProducts, dateFrom, dateTo]);
 
             const stats = useMemo(() => {
-                let qty = 0;
-                filteredProducts.forEach(p => p.variants.forEach(v => qty += (parseInt(v['Variant Inventory Qty']) || 0)));
-                return { count: filteredProducts.length, qty };
+                let variants = 0, qty = 0, noEan = 0;
+                filteredProducts.forEach(p => {
+                    (p.variants || []).forEach(v => {
+                        variants++;
+                        qty += v.qty;
+                        if (!v.ean) noEan++;
+                    });
+                });
+                return { products: filteredProducts.length, variants, qty, noEan };
             }, [filteredProducts]);
 
-            const toggleExpand = (h) => {
-                const n = new Set(expanded);
-                n.has(h) ? n.delete(h) : n.add(h);
-                setExpanded(n);
+            const toggleSelect = (handle) => {
+                setSelected(prev => {
+                    const next = new Set(prev);
+                    next.has(handle) ? next.delete(handle) : next.add(handle);
+                    return next;
+                });
+            };
+
+            const allChecked = filteredProducts.length > 0 && filteredProducts.every(p => selected.has(p.Handle));
+
+            const toggleSelectAll = () => {
+                if (allChecked) setSelected(new Set());
+                else setSelected(new Set(filteredProducts.map(p => p.Handle)));
+            };
+
+            const toggleExpand = (handle) => {
+                setExpanded(prev => {
+                    const next = new Set(prev);
+                    next.has(handle) ? next.delete(handle) : next.add(handle);
+                    return next;
+                });
+            };
+
+            const getTargetProducts = () =>
+                selected.size > 0
+                    ? filteredProducts.filter(p => selected.has(p.Handle))
+                    : filteredProducts;
+
+            const doPrint = (productList) => {
+                const labels = [];
+                productList.forEach(p => {
+                    (p.variants || []).forEach(v => {
+                        for (let i = 0; i < v.qty; i++) {
+                            labels.push({ title: p.Title, size: v.size, color: v.color, ean: v.ean, price: v.price });
+                        }
+                    });
+                });
+                if (!labels.length) { showToast('Quantités à 0 — rien à imprimer'); return; }
+                const printContainer = document.getElementById('print-container');
+                if (!printContainer) { showToast('Erreur conteneur impression'); return; }
+                printContainer.innerHTML = labels.map(lbl => `
+                    <div class="print-label">
+                        <div class="print-label-title">${lbl.title || 'PAM BOUTIQUE'}</div>
+                        <div class="print-label-info">${lbl.size} | ${lbl.color}</div>
+                        ${lbl.ean
+                            ? `<img class="print-label-barcode" src="https://bwipjs-api.metafloor.com/?bcid=ean13&text=${lbl.ean}&scale=2&height=8&textxalign=center&textsize=8" alt="${lbl.ean}" />`
+                            : '<div class="no-barcode">SANS EAN</div>'
+                        }
+                        <div class="print-label-price">${lbl.price ? lbl.price + ' €' : ''}</div>
+                    </div>
+                `).join('');
+                setTimeout(() => window.print(), 100);
+                showToast(`${labels.length} étiquette(s) envoyées à l'impression`);
+            };
+
+            const exportCSV = () => {
+                const list = getTargetProducts();
+                if (!list.length) { showToast('Aucun produit à exporter'); return; }
+
+                const HEADERS_CSV = [
+                    'Handle', 'Title', 'Body (HTML)', 'Vendor', 'Product Category', 'Type', 'Tags', 'Published',
+                    'Option1 Name', 'Option1 Value', 'Option1 Linked To',
+                    'Option2 Name', 'Option2 Value', 'Option2 Linked To',
+                    'Taille (product.metafields.shopify.size)',
+                    'Couleur (product.metafields.shopify.color-pattern)',
+                    'Variant SKU', 'Variant Barcode', 'Variant Grams',
+                    'Variant Inventory Tracker', 'Variant Inventory Policy', 'Variant Fulfillment Service',
+                    'Variant Price', 'Variant Compare At Price',
+                    'Variant Requires Shipping', 'Variant Taxable', 'Variant Weight Unit',
+                    'Variant Inventory Qty',
+                    'Image Src', 'Image Position',
+                    'Cost per item', 'Status'
+                ];
+
+                const rows = [HEADERS_CSV];
+
+                list.forEach(p => {
+                    const allSizes = [...new Set((p.variants || []).map(v => v.size))];
+                    const allColors = [...new Set((p.variants || []).map(v => v.color))];
+                    let isFirst = true;
+                    (p.variants || []).forEach(v => {
+                        rows.push([
+                            p.Handle,
+                            isFirst ? p.Title : '',
+                            isFirst ? (p['Body (HTML)'] || '') : '',
+                            isFirst ? (p.Vendor || 'PAM Boutique') : '',
+                            isFirst ? (p['Product Category'] || '') : '',
+                            isFirst ? (p.Type || '') : '',
+                            isFirst ? (p.Tags || '') : '',
+                            isFirst ? 'TRUE' : '',
+                            'Taille', v.size, 'product.metafields.shopify.size',
+                            'Couleur', v.color, 'product.metafields.shopify.color-pattern',
+                            isFirst ? allSizes.join('; ') : '',
+                            isFirst ? allColors.join('; ') : '',
+                            v.sku || '',
+                            v.ean || '',
+                            v.grams || '0',
+                            'shopify', 'deny', 'manual',
+                            v.price || '',
+                            v.compareAt || '',
+                            'TRUE', 'TRUE', 'kg',
+                            v.qty || '0',
+                            isFirst ? (p['Image Src'] || '') : '',
+                            isFirst ? '1' : '',
+                            isFirst ? (p['Cost per item'] || '') : '',
+                            isFirst ? 'active' : '',
+                        ]);
+                        isFirst = false;
+                    });
+                });
+
+                const escapeCell = (cell) => {
+                    const s = String(cell == null ? '' : cell).replace(/"/g, '""');
+                    return (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) ? `"${s}"` : s;
+                };
+                const csv = rows.map(r => r.map(escapeCell).join(',')).join('\r\n');
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pam_shopify_export_${formatDateInput(new Date())}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast(`CSV exporté : ${list.length} produits`);
             };
 
             return (
                 <div className="space-y-4 animate-fade-in">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white p-4 rounded-2xl border shadow-sm">
-                            <div className="text-[10px] text-stone-400 font-bold uppercase">Produits Arrivés</div>
-                            <div className="text-2xl font-bold text-stone-900">{stats.count}</div>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl border shadow-sm">
-                            <div className="text-[10px] text-stone-400 font-bold uppercase">Total Pièces</div>
-                            <div className="text-2xl font-bold text-blue-600">{stats.qty}</div>
-                        </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                            { label: 'Produits', value: stats.products, color: 'text-stone-900' },
+                            { label: 'Variantes', value: stats.variants, color: 'text-blue-700' },
+                            { label: 'Total Pièces', value: stats.qty, color: 'text-green-700' },
+                            { label: 'Sans EAN', value: stats.noEan, color: stats.noEan > 0 ? 'text-amber-600' : 'text-green-600' },
+                        ].map(s => (
+                            <div key={s.label} className="bg-white rounded-xl p-3 border border-stone-200 shadow-sm">
+                                <div className="text-xs text-stone-500 font-medium uppercase tracking-tight">{s.label}</div>
+                                <div className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</div>
+                            </div>
+                        ))}
                     </div>
+
                     <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-                        <div className="p-4 bg-stone-50 border-b flex gap-2 items-center">
-                            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="text-xs p-2 border rounded-lg" />
-                            <span className="text-stone-400 text-xs">→</span>
-                            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="text-xs p-2 border rounded-lg" />
+                        <div className="p-4 border-b border-stone-100 flex flex-wrap items-center gap-3">
+                            <span className="text-xs font-bold text-stone-500 uppercase tracking-wide">Période :</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                                    className="text-xs px-3 py-2 border border-stone-200 rounded-lg bg-white focus:ring-2 focus:ring-stone-900 outline-none" />
+                                <span className="text-stone-400 text-xs">→</span>
+                                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                                    className="text-xs px-3 py-2 border border-stone-200 rounded-lg bg-white focus:ring-2 focus:ring-stone-900 outline-none" />
+                            </div>
+                            <div className="flex gap-2 flex-wrap ml-auto">
+                                <button onClick={() => doPrint(getTargetProducts())}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors">
+                                    <IconPrinter className="w-3.5 h-3.5" />
+                                    Imprimer {selected.size > 0 ? `(${selected.size})` : 'Arrivage'}
+                                </button>
+                                <button onClick={exportCSV}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors">
+                                    <IconDownload className="w-3.5 h-3.5" />
+                                    CSV Shopify
+                                </button>
+                            </div>
                         </div>
-                        <div className="divide-y divide-stone-100 max-h-[500px] overflow-y-auto custom-scrollbar">
-                            {filteredProducts.length === 0 ? (
-                                <div className="p-10 text-center text-stone-400 text-sm italic">Aucun arrivage sur cette période.</div>
-                            ) : filteredProducts.map(p => (
-                                <div key={p.Handle}>
-                                    <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-stone-50" onClick={() => toggleExpand(p.Handle)}>
-                                        <div className="w-10 h-10 rounded bg-stone-100 overflow-hidden border shrink-0">
-                                            {(p['Photo Interne'] || p['Image Src']) && <img src={p['Photo Interne'] || p['Image Src']} className="w-full h-full object-cover" />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-sm uppercase truncate">{p.Title}</div>
-                                            <div className="text-[10px] text-stone-400">{new Date(p['Date Ajout']).toLocaleDateString()}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-xs font-bold text-green-700">{p['Variant Price']} €</div>
-                                            <div className="text-[10px] text-blue-600 font-bold">{p.variants.reduce((a,v)=>a+(parseInt(v['Variant Inventory Qty'])||0),0)} pcs</div>
-                                        </div>
-                                    </div>
-                                    {expanded.has(p.Handle) && (
-                                        <div className="bg-stone-50 px-4 pb-4 space-y-1">
-                                            {p.variants.map((v, i) => (
-                                                <div key={i} className="flex justify-between text-[10px] border-b border-stone-200 py-1">
-                                                    <span>{v['Option2 Value']} — <b>{v['Option1 Value']}</b></span>
-                                                    <span className="font-mono text-stone-500">{v['Variant Barcode'] || 'PAS EAN'}</span>
-                                                    <span className="font-bold">{v['Variant Inventory Qty']} pcs</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+
+                        <div className="flex items-center gap-3 px-4 py-2 border-b border-stone-100 bg-stone-50">
+                            <label className="flex items-center gap-2 cursor-pointer" onClick={toggleSelectAll}>
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${allChecked ? 'bg-stone-900 border-stone-900' : 'border-stone-300 bg-white'}`}>
+                                    {allChecked && <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                                 </div>
-                            ))}
+                                <span className="text-xs text-stone-600 font-medium">Tout sélectionner</span>
+                            </label>
+                        </div>
+
+                        <div className="divide-y divide-stone-100 max-h-[600px] overflow-y-auto custom-scrollbar">
+                            {filteredProducts.length === 0 ? (
+                                <div className="text-center py-12 text-stone-400 text-sm">Aucun produit sur cette période</div>
+                            ) : filteredProducts.map(p => {
+                                const isSelected = selected.has(p.Handle);
+                                const isExpanded = expanded.has(p.Handle);
+                                const totalQty = (p.variants || []).reduce((s, v) => s + v.qty, 0);
+                                const price = (p.variants && p.variants[0]) ? p.variants[0].price : '—';
+
+                                return (
+                                    <div key={p.Handle} className={`${isSelected ? 'bg-yellow-50' : 'bg-white'}`}>
+                                        <div className="flex items-center gap-3 px-4 py-3">
+                                            <div onClick={() => toggleSelect(p.Handle)}
+                                                className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${isSelected ? 'bg-stone-900 border-stone-900' : 'border-stone-300 bg-white'}`}>
+                                                {isSelected && <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                                            </div>
+                                            <div className="w-10 h-10 rounded-lg bg-stone-100 border overflow-hidden shrink-0">
+                                                {(p['Photo Interne'] || p['Image Src']) ? <img src={p['Photo Interne'] || p['Image Src']} className="w-full h-full object-cover" /> : <IconImage className="w-4 h-4 text-stone-300 m-3" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleExpand(p.Handle)}>
+                                                <div className="font-bold text-sm text-stone-900 truncate uppercase leading-tight">{p.Title}</div>
+                                                <div className="flex gap-2 text-[10px] mt-0.5 text-stone-500 font-medium">
+                                                    <span>{new Date(p['Date Ajout']).toLocaleDateString()}</span>
+                                                    <span className="text-blue-600 font-bold">{totalQty} pcs</span>
+                                                    <span className="text-green-700 font-bold">{price} €</span>
+                                                </div>
+                                            </div>
+                                            <IconChevronDown className={`w-4 h-4 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </div>
+                                        {isExpanded && (
+                                            <div className="bg-stone-50 px-4 py-2 space-y-1 animate-fade-in border-t border-stone-100">
+                                                {(p.variants || []).map((v, i) => (
+                                                    <div key={i} className="flex items-center justify-between text-[10px] py-1 border-b border-stone-200 last:border-0">
+                                                        <span className="font-bold text-stone-700">{v.color} — <span className="bg-stone-200 px-1 rounded">{v.size}</span></span>
+                                                        <span className="font-mono text-stone-500">{v.ean || 'SANS EAN'}</span>
+                                                        <span className="font-bold text-blue-700">{v.qty} pcs</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
+                    {toastMsg && <div className="fixed bottom-4 right-4 z-50 bg-stone-900 text-white text-xs px-4 py-2 rounded-xl shadow-lg animate-fade-in">{toastMsg}</div>}
                 </div>
             );
         }
@@ -169,7 +396,6 @@
         // COMPOSANT PRINCIPAL : App
         // =============================================
         function App() {
-            // URL DE VOTRE SCRIPT DÉPLOYÉ
             const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
 
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
@@ -177,14 +403,42 @@
             const [fileData, setFileData] = useState([]);
             const [isLoading, setIsLoading] = useState(false);
             const [isSaving, setIsSaving] = useState(false);
+            const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+            const [logs, setLogs] = useState([]);
             const [activeTab, setActiveTab] = useState('stock');
+
             const [searchQuery, setSearchQuery] = useState('');
+            const [mode, setMode] = useState('new');
             const [showModal, setShowModal] = useState(false);
+            const [searchResults, setSearchResults] = useState([]);
             const [selectedGroup, setSelectedGroup] = useState(null);
 
             const [formData, setFormData] = useState({
-                Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', CostPerItem: '', colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: ''
+                Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: ''
             });
+
+            const [customSizeInput, setCustomSizeInput] = useState('');
+            const [dynamicSizes, setDynamicSizes] = useState([]);
+            const [customCatInput, setCustomCatInput] = useState('');
+            const [dynamicCats, setDynamicCats] = useState([]);
+
+            const addLog = (message, type = 'info') => {
+                setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev]);
+            };
+
+            const handleExists = useMemo(() => {
+                const queryHandle = safeString(formData.Handle);
+                if (!queryHandle) return false;
+                return (fileData || []).some(item => safeString(item.Handle) === queryHandle);
+            }, [formData.Handle, fileData]);
+
+            const existingTags = useMemo(() => {
+                const tagsSet = new Set();
+                (fileData || []).forEach(row => {
+                    if (row.Tags) { String(row.Tags).split(',').forEach(t => { const tag = t.trim(); if (tag) tagsSet.add(tag); }); }
+                });
+                return Array.from(tagsSet).sort();
+            }, [fileData]);
 
             useEffect(() => { if (isLoggedIn) fetchSheetData(); }, [isLoggedIn]);
 
@@ -193,9 +447,92 @@
                 try {
                     const r = await fetch(webhookUrl + '?t=' + Date.now());
                     const d = await r.json();
-                    if (Array.isArray(d)) setFileData(d);
-                } catch (e) { console.error("Erreur de synchronisation", e); }
+                    if (Array.isArray(d)) {
+                        setFileData(d);
+                        addLog(`Synchronisé : ${d.length} lignes.`, 'success');
+                    }
+                } catch (error) { addLog(`Erreur connexion Sheets.`, 'error'); }
                 setIsLoading(false);
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                const finalValue = name === 'Title' ? String(value).toUpperCase() : value;
+                setFormData(prev => ({ ...prev, [name]: finalValue }));
+            };
+
+            const handleCheckboxChange = (type, value) => {
+                setFormData(prev => {
+                    const list = prev[type] || [];
+                    const newList = list.includes(value) ? list.filter(item => item !== value) : [...list, value];
+                    return { ...prev, [type]: newList };
+                });
+            };
+
+            const handleAddCustomSize = (e) => {
+                if (e) e.preventDefault();
+                const newSize = customSizeInput.trim().toUpperCase();
+                if (!newSize) return;
+                if (!TAILLES_DISPONIBLES.includes(newSize) && !dynamicSizes.includes(newSize)) { setDynamicSizes(prev => [...prev, newSize]); }
+                setFormData(prev => ({ ...prev, sizes: prev.sizes.includes(newSize) ? prev.sizes : [...prev.sizes, newSize] }));
+                setCustomSizeInput('');
+            };
+
+            const handleAddCustomCat = (e) => {
+                if (e) e.preventDefault();
+                const newCat = customCatInput.trim();
+                if (!newCat) return;
+                if (!CATEGORIES_DISPONIBLES.includes(newCat) && !dynamicCats.includes(newCat)) { setDynamicCats(prev => [...prev, newCat]); }
+                setFormData(prev => ({ ...prev, category: prev.category.includes(newCat) ? prev.category : [...prev.category, newCat] }));
+                setCustomCatInput('');
+            };
+
+            const handleGenerateEANs = () => {
+                setFormData(prev => {
+                    const newEans = { ...prev.eans };
+                    prev.sizes.forEach(s => {
+                        prev.colors.forEach(c => {
+                            const key = `${s}-${c}`;
+                            if (!newEans[key]) newEans[key] = generateRandomEAN13();
+                        });
+                    });
+                    return { ...prev, eans: newEans };
+                });
+                addLog("EANs auto-générés.", "success");
+            };
+
+            const handleGenerateDescription = async () => {
+                if (!formData.Title) return;
+                setIsGeneratingAI(true);
+                addLog("Génération IA...", "info");
+                try {
+                    await new Promise(r => setTimeout(r, 1200));
+                    setFormData(prev => ({ ...prev, Body: `<p>Modèle <strong>${prev.Title}</strong>, élégant et confortable, idéal pour votre garde-robe.</p>` }));
+                    addLog("Description IA prête.", "success");
+                } catch (e) { addLog("IA indisponible.", "error"); }
+                setIsGeneratingAI(false);
+            };
+
+            const handlePhotoCapture = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX = 400;
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+                        else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        setFormData(prev => ({ ...prev, internalPhoto: canvas.toDataURL('image/jpeg', 0.5) }));
+                    };
+                };
             };
 
             const handleGlobalSearch = (e) => {
@@ -204,17 +541,34 @@
                 if (!q) return;
                 const matches = fileData.filter(i => safeString(i.Handle).includes(q) || safeString(i.Title).includes(q) || safeString(i['Variant Barcode']).includes(q));
                 const groups = {};
-                matches.forEach(m => { if(!groups[m.Handle]) groups[m.Handle] = []; groups[m.Handle].push(m); });
+                matches.forEach(m => { const h = m.Handle || 'ukn'; if(!groups[h]) groups[h] = []; groups[h].push(m); });
                 const res = Object.values(groups);
-                if (res.length > 0) { setSelectedGroup(res[0]); setShowModal(true); }
-                else { alert("Produit introuvable."); }
+                setSearchResults(res);
+                if (res.length === 1) { setSelectedGroup(res[0]); }
+                else { setSelectedGroup(null); }
+                setShowModal(true);
+            };
+
+            const confirmSelection = () => {
+                if (!selectedGroup) return;
+                const v = selectedGroup[0];
+                const sizes = [...new Set(selectedGroup.map(x=>x['Option1 Value']))];
+                const colors = [...new Set(selectedGroup.map(x=>x['Option2 Value']))];
+                const quantities = selectedGroup.reduce((a,x)=>({...a, [`${x['Option1 Value']}-${x['Option2 Value']}`]: x['Variant Inventory Qty']}), {});
+                const eans = selectedGroup.reduce((a,x)=>({...a, [`${x['Option1 Value']}-${x['Option2 Value']}`]: x['Variant Barcode']}), {});
+                
+                setFormData({
+                    Handle: v.Handle, Title: v.Title, Body: v['Body (HTML)'], Type: v.Type, Tags: v.Tags, 'Variant SKU': v['Variant SKU'], 'Variant Price': v['Variant Price'], CostPerItem: v['Cost per item'], Grams: v['Variant Grams'], ImageSrc: v['Image Src'],
+                    category: v['Product Category'] ? v['Product Category'].split('>').map(x=>x.trim()) : [],
+                    colors, sizes, quantities, eans, internalPhoto: v['Photo Interne'] || ''
+                });
+                setMode('edit');
+                setShowModal(false);
+                addLog("Fiche chargée pour modification.", "success");
             };
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                if (!formData.Handle || !formData.Title || !formData['Variant Price']) {
-                    alert("Handle, Titre et Prix obligatoires !"); return;
-                }
                 setIsSaving(true);
                 const payloads = [];
                 const now = new Date().toISOString();
@@ -226,6 +580,8 @@
                             Handle: formData.Handle,
                             Title: formData.Title,
                             'Body (HTML)': formData.Body,
+                            Vendor: 'PAM Boutique',
+                            'Product Category': formData.category.join(' > '),
                             Type: formData.Type,
                             Tags: formData.Tags,
                             'Option1 Name': 'Taille', 'Option1 Value': s,
@@ -245,187 +601,229 @@
 
                 try {
                     await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payloads) });
-                    alert("Fiche enregistrée avec succès !");
+                    addLog(`Enregistré : ${formData.Handle}`, 'success');
                     fetchSheetData();
-                } catch (e) { alert("Erreur lors de la sauvegarde."); }
+                    setMode('new');
+                    setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '' });
+                } catch (e) { addLog("Erreur sauvegarde.", "error"); }
                 setIsSaving(false);
-            };
-
-            const handlePhotoCapture = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const MAX = 400;
-                        let w = img.width, h = img.height;
-                        if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
-                        else { if (h > MAX) { w *= MAX / h; h = MAX; } }
-                        canvas.width = w; canvas.height = h;
-                        ctx.drawImage(img, 0, 0, w, h);
-                        setFormData(prev => ({ ...prev, internalPhoto: canvas.toDataURL('image/jpeg', 0.5) }));
-                    };
-                };
             };
 
             if (!isLoggedIn) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center bg-stone-100 p-4">
-                        <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center border">
-                            <LogoPam className="mx-auto mb-6" />
-                            <h2 className="text-xl font-bold mb-6 uppercase tracking-wider">Pam Boutique</h2>
-                            <input type="text" value={userName} onChange={e=>setUserName(e.target.value)} placeholder="Votre prénom" className="w-full p-4 border rounded-xl mb-4 text-center font-bold" />
-                            <button onClick={()=>{if(userName){setIsLoggedIn(true); localStorage.setItem('pam_username', userName);}}} className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold uppercase hover:bg-yellow-400 hover:text-black transition-all">Entrer</button>
+                    <div className="min-h-screen p-4 flex items-center justify-center bg-stone-100">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-8 text-center border">
+                            <LogoPam className="w-20 h-20 mx-auto mb-6" />
+                            <h1 className="text-xl font-bold uppercase tracking-wider mb-2">PAM STOCK</h1>
+                            <p className="text-stone-400 mb-6 text-sm">Veuillez indiquer votre prénom.</p>
+                            <form onSubmit={(e) => { e.preventDefault(); if (userName.trim()) { setIsLoggedIn(true); localStorage.setItem('pam_username', userName.trim()); } }}>
+                                <input type="text" value={userName} onChange={e => setUserName(e.target.value)} placeholder="Prénom" className="w-full px-4 py-3 border-2 border-stone-200 rounded-xl mb-4 text-center font-bold outline-none" required />
+                                <button type="submit" className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold uppercase text-sm hover:bg-yellow-400 hover:text-stone-900 transition-all">Entrer</button>
+                            </form>
                         </div>
                     </div>
                 );
             }
 
             return (
-                <div id="main-app" className="max-w-4xl mx-auto p-4 space-y-6">
-                    <header className="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between border sticky top-4 z-30">
-                        <div className="flex items-center gap-3">
-                            <LogoPam className="w-10 h-10" />
-                            <div>
-                                <h1 className="font-bold text-base uppercase pam-boutique-title leading-tight">Pam Stock</h1>
-                                <div className="text-[9px] font-bold text-stone-400 uppercase">{userName} — {fileData.length} lignes</div>
+                <div id="main-app" className="min-h-screen p-2 sm:p-6">
+                    <div id="print-container" className="hidden"></div>
+                    <div className="max-w-6xl mx-auto space-y-6">
+                        
+                        <header className="bg-white shadow-sm rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border border-stone-100 sticky top-2 z-30">
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <LogoPam className="w-12 h-12" />
+                                <div>
+                                    <h1 className="text-lg font-bold text-stone-900 pam-boutique-title uppercase leading-none">Pam Boutique</h1>
+                                    <div className="flex items-center gap-2 text-[10px] sm:text-xs mt-1 font-bold text-stone-400">
+                                        <span className="bg-stone-100 px-1.5 py-0.5 rounded flex items-center gap-1 uppercase"><IconUser className="w-3 h-3"/> {userName}</span>
+                                        {isLoading ? <span className="text-amber-500 animate-pulse">Sync...</span> : <span className="text-green-600 uppercase">Connecté ({fileData.length})</span>}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex bg-stone-100 p-1 rounded-xl gap-1">
-                            {['stock', 'rapport'].map(t => (
-                                <button key={t} onClick={()=>setActiveTab(t)} className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab===t ? 'bg-white shadow-sm text-stone-900' : 'text-stone-400'}`}>{t}</button>
-                            ))}
-                        </div>
-                    </header>
+                            <div className="flex bg-stone-100 rounded-xl p-1 gap-1 w-full sm:w-auto">
+                                <button onClick={()=>setActiveTab('stock')} className={`flex-1 px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeTab==='stock' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-400'}`}>Stock</button>
+                                <button onClick={()=>setActiveTab('rapport')} className={`flex-1 px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeTab==='rapport' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-400'}`}>Rapport</button>
+                            </div>
+                        </header>
 
-                    {activeTab === 'rapport' ? <WeeklyReport fileData={fileData} /> : (
-                        <div className="space-y-6 animate-fade-in">
-                            <form onSubmit={handleGlobalSearch} className="bg-white p-4 rounded-2xl border shadow-sm flex gap-2">
-                                <input type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Scanner ou Rechercher..." className="flex-1 p-3 border rounded-xl font-bold focus:ring-2 focus:ring-yellow-400 outline-none" />
-                                <button type="submit" className="bg-stone-900 text-white px-6 rounded-xl font-bold text-sm uppercase">OK</button>
-                            </form>
+                        {activeTab === 'rapport' ? <WeeklyReport fileData={fileData} webhookUrl={webhookUrl} userName={userName} /> : (
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in">
+                                
+                                <div className="lg:col-span-3 space-y-6">
+                                    <div className="bg-white shadow-sm rounded-2xl p-4 sm:p-6 border border-stone-100">
+                                        <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3">1. Identification rapide</h2>
+                                        <form onSubmit={handleGlobalSearch} className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                                                <input type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Code-barres ou Titre..." className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl font-bold focus:bg-white focus:ring-2 focus:ring-yellow-400 outline-none transition-all" />
+                                            </div>
+                                            <button type="submit" className="px-6 py-3 bg-stone-900 text-white font-bold rounded-xl uppercase text-xs">OK</button>
+                                        </form>
+                                    </div>
 
-                            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="sm:col-span-2">
-                                        <label className="text-[10px] font-bold text-stone-400 uppercase">Titre du produit *</label>
-                                        <input type="text" value={formData.Title} onChange={e=>setFormData({...formData, Title: e.target.value.toUpperCase()})} className="w-full p-3 border rounded-xl font-bold text-lg" required />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-stone-400 uppercase">Lien (Handle) *</label>
-                                        <input type="text" value={formData.Handle} onChange={e=>setFormData({...formData, Handle: e.target.value.toLowerCase().replace(/\s+/g,'-')})} className="w-full p-2 border rounded-lg text-sm" required />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-stone-400 uppercase">Prix de vente (€) *</label>
-                                        <input type="number" step="0.01" value={formData['Variant Price']} onChange={e=>setFormData({...formData, 'Variant Price': e.target.value})} className="w-full p-2 border rounded-lg text-sm font-bold text-green-700 bg-green-50" required />
-                                    </div>
-                                </div>
+                                    <form onSubmit={handleSubmit} className={`bg-white shadow-sm rounded-2xl p-6 border ${mode === 'edit' ? 'border-blue-300' : 'border-stone-100'} space-y-8 relative overflow-hidden`}>
+                                        {mode === 'edit' && <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500"></div>}
+                                        
+                                        <section className="space-y-4">
+                                            <div className="flex justify-between items-end border-b pb-2">
+                                                <h3 className="font-bold text-stone-800 uppercase text-xs tracking-widest">2. Fiche Produit</h3>
+                                                <button type="button" onClick={()=>setMode('new')} className="text-[10px] font-bold text-stone-400 underline">Vider</button>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="sm:col-span-2">
+                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">Titre *</label>
+                                                    <input type="text" name="Title" value={formData.Title} onChange={handleInputChange} placeholder="EX: VESTE COCO" className="w-full px-4 py-3 border border-stone-200 rounded-xl font-bold uppercase text-lg focus:ring-2 focus:ring-stone-900 outline-none" required />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">Lien (Handle) *</label>
+                                                    <input type="text" name="Handle" value={formData.Handle} onChange={handleInputChange} placeholder="veste-coco" className="w-full px-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-stone-900 outline-none" required />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">SKU Base</label>
+                                                    <input type="text" name="Variant SKU" value={formData['Variant SKU']} onChange={handleInputChange} placeholder="REF-COCO" className="w-full px-4 py-2 border border-stone-200 rounded-xl text-sm font-mono focus:ring-2 focus:ring-stone-900 outline-none" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between mb-1">
+                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase">Description</label>
+                                                    <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingAI} className="text-[9px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded flex items-center gap-1 border border-purple-200 shadow-sm">{isGeneratingAI ? 'IA...' : <IconSparkles className="w-3 h-3"/>} IA</button>
+                                                </div>
+                                                <textarea name="Body" value={formData.Body} onChange={handleInputChange} rows="2" className="w-full px-4 py-2 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-stone-900 outline-none" placeholder="<p>Détails...</p>"></textarea>
+                                            </div>
+                                        </section>
 
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-bold text-stone-400 uppercase">Tailles & Couleurs</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {TAILLES_DISPONIBLES.map(s => (
-                                            <button type="button" key={s} onClick={() => setFormData(p => ({...p, sizes: p.sizes.includes(s) ? p.sizes.filter(x=>x!==s) : [...p.sizes, s]}))} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${formData.sizes.includes(s) ? 'bg-stone-900 text-white' : 'bg-white'}`}>{s}</button>
-                                        ))}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 pt-2">
-                                        {COULEURS_DISPONIBLES.map(c => (
-                                            <button type="button" key={c} onClick={() => setFormData(p => ({...p, colors: p.colors.includes(c) ? p.colors.filter(x=>x!==c) : [...p.colors, c]}))} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${formData.colors.includes(c) ? 'bg-yellow-400 border-yellow-500' : 'bg-white'}`}>{c}</button>
-                                        ))}
-                                    </div>
-                                </div>
+                                        <section className="space-y-4">
+                                            <h3 className="font-bold text-stone-800 uppercase text-xs tracking-widest border-b pb-2">3. Tarifs & Stock</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">Prix Vente (€) *</label>
+                                                    <input type="number" step="0.01" name="Variant Price" value={formData['Variant Price']} onChange={handleInputChange} className="w-full px-4 py-3 border-2 border-green-200 bg-green-50 text-green-800 font-bold rounded-xl text-lg focus:ring-2 focus:ring-green-500 outline-none" required />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">Prix Achat (€)</label>
+                                                    <input type="number" step="0.01" name="CostPerItem" value={formData.CostPerItem} onChange={handleInputChange} className="w-full px-4 py-3 border border-stone-200 rounded-xl text-lg focus:ring-2 focus:ring-stone-900 outline-none" />
+                                                </div>
+                                            </div>
 
-                                {formData.sizes.length > 0 && formData.colors.length > 0 && (
-                                    <div className="bg-stone-50 p-4 rounded-xl space-y-4">
-                                        <div className="flex justify-between items-center border-b pb-2">
-                                            <span className="text-[10px] font-bold uppercase text-stone-500">Grille des stocks</span>
-                                            <button type="button" onClick={() => {
-                                                const neans = {...formData.eans};
-                                                formData.colors.forEach(c => formData.sizes.forEach(s => { if(!neans[`${s}-${c}`]) neans[`${s}-${c}`] = generateRandomEAN13(); }));
-                                                setFormData({...formData, eans: neans});
-                                            }} className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded">Générer EAN</button>
-                                        </div>
-                                        <div className="space-y-4">
-                                            {formData.colors.map(c => (
-                                                <div key={c} className="bg-white p-3 rounded-lg border shadow-sm">
-                                                    <div className="text-[10px] font-bold mb-2 uppercase text-stone-400">{c}</div>
-                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                                        {formData.sizes.map(s => (
-                                                            <div key={s} className="space-y-1">
-                                                                <div className="flex justify-between text-[9px] font-bold"><span>{s}</span></div>
-                                                                <input type="number" placeholder="Qté" value={formData.quantities[`${s}-${c}`] || ''} onChange={e=>setFormData(p=>({...p, quantities: {...p.quantities, [`${s}-${c}`]: e.target.value}}))} className="w-full p-1 border rounded text-center text-xs font-bold text-blue-700" />
+                                            <div className="space-y-3">
+                                                <label className="block text-[10px] font-bold text-stone-400 uppercase">Variantes & Grille</label>
+                                                <div className="flex flex-wrap gap-1.5 pb-2">
+                                                    {TAILLES_DISPONIBLES.concat(dynamicSizes).map(s => (
+                                                        <button type="button" key={s} onClick={()=>handleCheckboxChange('sizes', s)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${formData.sizes.includes(s) ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-500 border-stone-200'}`}>{s}</button>
+                                                    ))}
+                                                    <input type="text" value={customSizeInput} onChange={e=>setCustomSizeInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleAddCustomSize(e)} placeholder="+" className="w-10 px-1 py-1 border border-dashed rounded text-center text-[10px] uppercase outline-none" />
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {COULEURS_DISPONIBLES.map(c => (
+                                                        <button type="button" key={c} onClick={()=>handleCheckboxChange('colors', c)} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${formData.colors.includes(c) ? 'bg-yellow-400 border-yellow-500 text-stone-900' : 'bg-white text-stone-500 border-stone-200'}`}>{c}</button>
+                                                    ))}
+                                                </div>
+
+                                                {formData.sizes.length > 0 && formData.colors.length > 0 && (
+                                                    <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-4 animate-fade-in">
+                                                        <div className="flex justify-between items-center border-b pb-2">
+                                                            <span className="text-[10px] font-bold text-stone-500 uppercase">Grille des stocks</span>
+                                                            <button type="button" onClick={handleGenerateEANs} className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded border border-blue-200 flex items-center gap-1 uppercase"><IconBarcode className="w-3 h-3"/> Auto-EAN</button>
+                                                        </div>
+                                                        {formData.colors.map(color => (
+                                                            <div key={color} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
+                                                                <h5 className="font-bold text-[10px] mb-2 uppercase text-stone-400">{color}</h5>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                                    {formData.sizes.map(size => {
+                                                                        const k = `${size}-${color}`;
+                                                                        return (
+                                                                            <div key={size} className="space-y-1">
+                                                                                <div className="flex justify-between text-[9px] font-bold text-stone-500 uppercase"><span>{size}</span></div>
+                                                                                <input type="number" value={formData.quantities[k]||''} onChange={e=>setFormData(p=>({...p, quantities: {...p.quantities, [k]: e.target.value}}))} className="w-full p-1.5 border rounded-lg text-center font-bold text-blue-700 text-xs bg-stone-50 focus:bg-white outline-none" placeholder="Qté" />
+                                                                                <input type="text" value={formData.eans[k]||''} onChange={e=>setFormData(p=>({...p, eans: {...p.eans, [k]: e.target.value}}))} className="w-full text-[8px] font-mono border-stone-200 rounded p-0.5 text-center outline-none bg-stone-50" placeholder="EAN" />
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                                )}
+                                            </div>
+                                        </section>
 
-                                <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
-                                    <h3 className="text-[10px] font-bold text-stone-400 uppercase mb-3">Photo Interne (Usine)</h3>
-                                    <div className="flex items-center gap-4">
-                                        <label className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer bg-white hover:bg-stone-100">
-                                            <IconCamera className="mb-1 text-stone-400" />
-                                            <span className="text-[10px] font-bold text-stone-500">Prendre Photo</span>
-                                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoCapture} />
-                                        </label>
-                                        {formData.internalPhoto && (
-                                            <div className="relative w-20 h-20 rounded-xl overflow-hidden border">
-                                                <img src={formData.internalPhoto} className="w-full h-full object-cover" />
-                                                <button type="button" onClick={()=>setFormData({...formData, internalPhoto:''})} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><IconX className="w-3 h-3"/></button>
+                                        <section className="bg-stone-50 p-4 rounded-2xl border border-stone-200">
+                                            <h3 className="text-[10px] font-bold text-stone-400 uppercase mb-3">4. Photo Usine</h3>
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-stone-300 rounded-2xl cursor-pointer bg-white hover:bg-stone-50 transition-colors">
+                                                    <IconCamera className="mb-1 text-stone-400" />
+                                                    <span className="text-[10px] font-bold text-stone-500 uppercase">Prendre / Charger</span>
+                                                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoCapture} />
+                                                </label>
+                                                {formData.internalPhoto && (
+                                                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-white shadow-md">
+                                                        <img src={formData.internalPhoto} className="w-full h-full object-cover" />
+                                                        <button type="button" onClick={()=>setFormData(p=>({...p, internalPhoto:''}))} className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5"><IconX className="w-3 h-3"/></button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </section>
+
+                                        <button type="submit" disabled={isSaving} className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-sm shadow-lg transition-all flex justify-center items-center gap-3 disabled:opacity-50 ${handleExists && mode==='new' ? 'bg-amber-500 hover:bg-amber-600 text-stone-900' : 'bg-stone-900 hover:bg-black text-white'}`}>
+                                            {isSaving ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : (mode === 'edit' ? <IconSave /> : <IconPlus />)}
+                                            {isSaving ? 'Envoi...' : (mode === 'edit' ? 'Mettre à jour la fiche' : 'Sauvegarder le stock')}
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <div className="hidden lg:flex flex-col h-full bg-white shadow-sm rounded-2xl p-4 border border-stone-100 max-h-[800px]">
+                                    <h3 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-4">Journal de bord</h3>
+                                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                                        {logs.length === 0 ? <p className="text-stone-300 text-[10px] italic">Aucune action...</p> : [...logs].map(l => (
+                                            <div key={l.id} className="text-[10px] border-l-2 pl-2 py-1 border-stone-100">
+                                                <span className="text-stone-300 block mb-0.5 font-mono">{l.time}</span>
+                                                <span className={`${l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':'text-stone-600'} font-bold`}>{l.message}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+
+                        {showModal && (
+                            <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
+                                    <div className="p-4 border-b flex justify-between items-center bg-stone-50">
+                                        <h3 className="font-bold text-sm uppercase tracking-wide">Résultats</h3>
+                                        <button onClick={()=>setShowModal(false)} className="bg-stone-200 rounded-full p-1"><IconX className="w-4 h-4"/></button>
+                                    </div>
+                                    <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar">
+                                        {searchResults.length > 0 ? searchResults.map((g, idx) => (
+                                            <div key={idx} onClick={()=>setSelectedGroup(g)} className={`p-3 rounded-2xl border-2 cursor-pointer transition-all ${selectedGroup===g ? 'border-stone-900 bg-stone-50' : 'border-stone-100 hover:border-stone-300'}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-lg bg-stone-100 overflow-hidden shrink-0">
+                                                        {(g[0]['Photo Interne'] || g[0]['Image Src']) && <img src={g[0]['Photo Interne'] || g[0]['Image Src']} className="w-full h-full object-cover" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-bold text-xs uppercase truncate leading-tight">{g[0].Title}</div>
+                                                        <div className="text-[9px] text-stone-400 mt-0.5">{g[0].Handle}</div>
+                                                        <div className="text-[9px] font-bold text-blue-600 uppercase mt-0.5">{g.length} variantes</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="text-center py-6">
+                                                <IconAlert className="w-8 h-8 text-stone-200 mx-auto mb-2" />
+                                                <p className="text-xs font-bold text-stone-400 uppercase">Aucun produit trouvé</p>
                                             </div>
                                         )}
                                     </div>
-                                </div>
-
-                                <button type="submit" disabled={isSaving} className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold uppercase shadow-lg hover:bg-black transition-all disabled:opacity-50">
-                                    {isSaving ? "Envoi..." : "Sauvegarder le stock"}
-                                </button>
-                            </form>
-                        </div>
-                    )}
-
-                    {showModal && selectedGroup && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-                            <div className="bg-white w-full max-w-sm rounded-3xl overflow-hidden animate-fade-in p-6 text-center space-y-4">
-                                <div className="w-24 h-24 bg-stone-100 mx-auto rounded-xl border flex items-center justify-center overflow-hidden">
-                                    {selectedGroup[0]['Photo Interne'] ? <img src={selectedGroup[0]['Photo Interne']} className="w-full h-full object-cover" /> : <IconImage className="text-stone-300" />}
-                                </div>
-                                <h3 className="font-bold text-lg uppercase truncate">{selectedGroup[0].Title}</h3>
-                                <div className="max-h-40 overflow-y-auto space-y-1 text-left bg-stone-50 p-3 rounded-xl custom-scrollbar">
-                                    {selectedGroup.map((v, i) => (
-                                        <div key={i} className="flex justify-between text-xs border-b border-stone-200 py-1">
-                                            <span>{v['Option2 Value']} - {v['Option1 Value']}</span>
-                                            <span className="font-bold text-blue-600">{v['Variant Inventory Qty']} pcs</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="flex flex-col gap-2 pt-4">
-                                    <button onClick={() => {
-                                        const v = selectedGroup[0];
-                                        setFormData({
-                                            Handle: v.Handle, Title: v.Title, Body: v['Body (HTML)'], Type: v.Type, Tags: v.Tags, 'Variant SKU': v['Variant SKU'], 'Variant Price': v['Variant Price'], CostPerItem: v['Cost per item'],
-                                            colors: [...new Set(selectedGroup.map(x=>x['Option2 Value']))],
-                                            sizes: [...new Set(selectedGroup.map(x=>x['Option1 Value']))],
-                                            quantities: selectedGroup.reduce((a,x)=>({...a, [`${x['Option1 Value']}-${x['Option2 Value']}`]: x['Variant Inventory Qty']}), {}),
-                                            eans: selectedGroup.reduce((a,x)=>({...a, [`${x['Option1 Value']}-${x['Option2 Value']}`]: x['Variant Barcode']}), {}),
-                                            internalPhoto: v['Photo Interne'] || ''
-                                        });
-                                        setShowModal(false);
-                                    }} className="w-full py-3 bg-yellow-400 font-bold rounded-xl uppercase text-xs">Éditer la fiche</button>
-                                    <button onClick={()=>setShowModal(false)} className="w-full py-3 border font-bold rounded-xl uppercase text-xs">Fermer</button>
+                                    <div className="p-4 bg-stone-50 flex flex-col gap-2">
+                                        {selectedGroup && <button onClick={confirmSelection} className="w-full py-3 bg-stone-900 text-white rounded-2xl font-bold uppercase text-xs">Éditer ce produit</button>}
+                                        <button onClick={()=>{setFormData(p=>({...p, Title: searchQuery.toUpperCase(), Handle: searchQuery.toLowerCase().replace(/\s+/g,'-')})); setShowModal(false); setMode('new');}} className="w-full py-3 bg-white border border-stone-200 text-stone-600 rounded-2xl font-bold uppercase text-xs">Créer nouveau</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                    <div id="print-container" className="hidden"></div>
+                        )}
+
+                    </div>
                 </div>
             );
         }
