@@ -473,7 +473,8 @@
         // COMPOSANT PRINCIPAL : App
         // =============================================
         function App() {
-            const webhookUrl = 'https://script.google.com/macros/s/AKfycbwCUNmNcoikoxMIaPnJwx_R1knx5aYn4pBpg6rXhAR4R15y_w641NGKbl7MRa93nvVD/exec';
+            // ---> LA CORRECTION EST ICI : LA NOUVELLE URL EST INSÉRÉE <---
+            const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
 
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
             const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('pam_username'));
