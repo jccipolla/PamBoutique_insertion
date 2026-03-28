@@ -473,7 +473,7 @@
         // COMPOSANT PRINCIPAL : App
         // =============================================
         function App() {
-            // ICI : L'URL EST CORRECTE
+            // ICI : URL DEFINITIVE ET FONCTIONNELLE
             const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
 
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
@@ -772,7 +772,6 @@
                     let isFirstRow = true;
                     const stringifiedSizes = sizesToProcess.join('; ');
                     const stringifiedColors = colorsToProcess.join('; ');
-                    // Date d'ajout : ISO string, seulement pour les nouveaux produits
                     const dateAjout = new Date().toISOString();
 
                     sizesToProcess.forEach(size => {
@@ -812,7 +811,7 @@
                                 'Cost per item': formData.CostPerItem,
                                 'Status': isFirstRow ? 'active' : '',
                                 'Variant Inventory Qty': formData.quantities[key] || '0',
-                                'Date Ajout': isFirstRow ? dateAjout : '',  // ← CHAMP CLÉ pour le rapport hebdomadaire
+                                'Date Ajout': isFirstRow ? dateAjout : '',
                                 'Opérateur': userName,
                                 'Photo Interne': isFirstRow ? formData.internalPhoto : ''
                             });
