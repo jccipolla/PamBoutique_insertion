@@ -225,7 +225,7 @@
                 showToast(`${labels.length} étiquette(s) envoyées à l'impression`);
             };
 
-            // Export CSV Shopify — format structuré compatible import direct
+            // Export CSV Shopify
             const exportCSV = () => {
                 const list = getTargetProducts();
                 if (!list.length) { showToast('Aucun produit à exporter'); return; }
@@ -473,7 +473,8 @@
         // COMPOSANT PRINCIPAL : App
         // =============================================
         function App() {
-            const webhookUrl = 'https://script.google.com/macros/s/AKfycbwCUNmNcoikoxMIaPnJwx_R1knx5aYn4pBpg6rXhAR4R15y_w641NGKbl7MRa93nvVD/exec';
+            // ICI : L'URL EST CORRECTE
+            const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
 
             const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
             const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('pam_username'));
