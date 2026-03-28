@@ -10,441 +10,186 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         body { -webkit-tap-highlight-color: transparent; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
         .pam-boutique-title { font-family: 'Georgia', serif; letter-spacing: 0.5px; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Correction stricte pour le logo */
-        .fixed-logo {
-            width: 60px !important;
-            height: 60px !important;
-            min-width: 60px !important;
-            min-height: 60px !important;
-            max-width: 60px !important;
-            max-height: 60px !important;
-            object-fit: cover;
-            border-radius: 9999px;
-            display: block;
-        }
-
-        /* Format d'impression thermique 3,5x2,5 cm STRICT */
         @media print {
             @page { margin: 0; size: 35mm 25mm; }
-            body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
+            body { margin: 0; padding: 0; background: white; }
             #main-app { display: none !important; }
-            #print-container { display: block !important; width: 100%; background: white; }
-            .print-label {
+            #print-container { display: block !important; width: 100%; }
+            .print-label { 
                 width: 35mm; height: 25mm; padding: 1mm; overflow: hidden; page-break-after: always;
-                display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-                font-family: sans-serif; background: white; box-sizing: border-box;
+                display: flex; flex-direction: column; align-items: center; justify-content: space-between; 
+                font-family: sans-serif; box-sizing: border-box;
             }
-            .print-label-title { font-size: 6pt; font-weight: bold; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1mm;}
-            .print-label-info { font-size: 6pt; text-align: center; font-weight: bold; }
+            .print-label-title { font-size: 6pt; font-weight: bold; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .print-label-barcode { height: 8mm; width: auto; max-width: 100%; }
-            .print-label-price { font-size: 7pt; font-weight: bold; margin-bottom: 1mm; }
-            .no-barcode { height: 8mm; border: 1px dashed #ccc; width: 90%; font-size: 5pt; display: flex; align-items: center; justify-content: center; }
+            .print-label-price { font-size: 7pt; font-weight: bold; }
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 font-sans pb-10">
+<body class="bg-stone-50 text-stone-800 pb-10">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- Icônes ---
-        const IconSearch = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
-        const IconPlus = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-        const IconSave = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
-        const IconCheck = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-        const IconAlert = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-        const IconRefresh = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 0 20.49 15"/></svg>;
-        const IconX = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-        const IconImage = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
-        const IconUser = ({className="w-4 h-4"}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-        const IconChevronDown = ({className="w-5 h-5"}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
-        const IconCamera = ({className="w-6 h-6"}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
-        const IconBarcode = ({className="w-4 h-4"}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>;
-        const IconPrinter = ({className="w-4 h-4"}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
-        const IconSparkles = ({className="w-4 h-4"}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M3 5h4"/></svg>;
-        const IconCalendar = ({className="w-4 h-4"}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
-        const IconDownload = ({className="w-4 h-4"}) => <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+        const IconSearch = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+        const IconPlus = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconPrinter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
 
-        const LogoPam = () => (
-            <div className="flex-shrink-0">
-                <img 
-                    src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" 
-                    alt="Pam Boutique" 
-                    className="fixed-logo border-2 border-stone-200" 
-                    onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true"; }} 
-                />
-            </div>
-        );
-
-        const CATEGORIES_DISPONIBLES = ['Vêtements', 'Vestes & Manteaux', 'Pulls & Gilets', 'Robes', 'Tops & T-shirts', 'Pantalons & Jeans', 'Accessoires'];
-        const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '34', '36', '38', '40', '42', '44', '46', '48'];
-        const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Imprimé Léo', 'Camel', 'Kaki', 'Marine', 'Doré', 'Argenté', 'Multicolore', 'Marron', 'Bordeaux'];
+        const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '34', '36', '38', '40', '42', '44'];
+        const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Camel', 'Kaki', 'Marine'];
 
         const safeString = (val) => val != null ? String(val).toLowerCase().trim().replace(/[\s-]/g, '') : '';
-
-        function WeeklyReport({ fileData }) {
-            const [dateFrom, setDateFrom] = useState(new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0]);
-            const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
-            const [expanded, setExpanded] = useState(new Set());
-
-            const allProducts = useMemo(() => {
-                if (!fileData || fileData.length === 0) return [];
-                const groups = {};
-                fileData.forEach(row => {
-                    const handle = row.Handle || 'unknown';
-                    if (!groups[handle]) groups[handle] = [];
-                    groups[handle].push(row);
-                });
-                return Object.values(groups).map(variants => ({ ...variants[0], variants }));
-            }, [fileData]);
-
-            const filtered = useMemo(() => {
-                const from = new Date(dateFrom + 'T00:00:00');
-                const to = new Date(dateTo + 'T23:59:59');
-                return allProducts.filter(p => {
-                    if (!p['Date Ajout']) return false;
-                    const d = new Date(p['Date Ajout']);
-                    return !isNaN(d) && d >= from && d <= to;
-                });
-            }, [allProducts, dateFrom, dateTo]);
-
-            const stats = useMemo(() => {
-                let qty = 0;
-                filtered.forEach(p => (p.variants || []).forEach(v => qty += (parseInt(v['Variant Inventory Qty']) || 0)));
-                return { products: filtered.length, qty };
-            }, [filtered]);
-
-            return (
-                <div className="space-y-4 animate-fade-in">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white p-4 rounded-2xl border shadow-sm text-center">
-                            <div className="text-[10px] text-stone-400 font-bold uppercase">Produits Arrivés</div>
-                            <div className="text-2xl font-bold text-stone-900">{stats.products}</div>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl border shadow-sm text-center">
-                            <div className="text-[10px] text-stone-400 font-bold uppercase">Volume Total</div>
-                            <div className="text-2xl font-bold text-blue-600">{stats.qty} <span className="text-xs uppercase">pcs</span></div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-                        <div className="p-4 bg-stone-50 border-b flex gap-2 items-center justify-center">
-                            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="text-xs p-2 border rounded-lg" />
-                            <span className="text-stone-400">→</span>
-                            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="text-xs p-2 border rounded-lg" />
-                        </div>
-                        <div className="divide-y divide-stone-100 max-h-[400px] overflow-y-auto custom-scrollbar">
-                            {filtered.length === 0 ? <div className="p-10 text-center text-stone-400 text-sm">Aucun arrivage sur cette période.</div> : filtered.map(p => (
-                                <div key={p.Handle} className="p-4 hover:bg-stone-50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded bg-stone-100 overflow-hidden border shrink-0">
-                                            {(p['Photo Interne'] || p['Image Src']) && <img src={p['Photo Interne'] || p['Image Src']} className="w-full h-full object-cover" />}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-bold text-sm uppercase truncate leading-tight">{p.Title}</div>
-                                            <div className="text-[10px] text-stone-400 uppercase font-bold">{new Date(p['Date Ajout']).toLocaleDateString('fr-FR')}</div>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-xs font-bold text-green-700">{p['Variant Price']} €</div>
-                                            <div className="text-[10px] text-blue-600 font-bold uppercase">{(p.variants || []).reduce((a,v)=>a+(parseInt(v['Variant Inventory Qty'])||0),0)} pcs</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            );
-        }
+        const generateEAN = () => "200" + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0') + "0";
 
         function App() {
-            // URL DEFINITIVE POUR VOTRE SCRIPT
             const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
-
-            const [userName, setUserName] = useState(localStorage.getItem('pam_username') || '');
-            const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('pam_username'));
+            const [userName] = useState(localStorage.getItem('pam_username') || '');
+            const [isLoggedIn, setIsLoggedIn] = useState(!!userName);
             const [fileData, setFileData] = useState([]);
-            const [isLoading, setIsLoading] = useState(false);
-            const [isSaving, setIsSaving] = useState(false);
-            const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-            const [logs, setLogs] = useState([]);
-            const [activeTab, setActiveTab] = useState('stock');
-
             const [searchQuery, setSearchQuery] = useState('');
-            const [mode, setMode] = useState('new');
             const [showModal, setShowModal] = useState(false);
-            const [searchResults, setSearchResults] = useState([]);
-            const [selectedGroup, setSelectedGroup] = useState(null);
+            const [selectedVariantsGroup, setSelectedVariantsGroup] = useState([]);
+            const [isSaving, setIsSaving] = useState(false);
+            const [formData, setFormData] = useState({ Handle: '', Title: '', 'Variant Price': '', sizes: [], colors: [], quantities: {}, eans: {}, internalPhoto: '' });
 
-            const [formData, setFormData] = useState({
-                Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', CostPerItem: '', colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '', category: []
-            });
+            useEffect(() => { if (isLoggedIn) fetchFileData(); }, [isLoggedIn]);
 
-            const [customSizeInput, setCustomSizeInput] = useState('');
-
-            const addLog = (message, type = 'info') => {
-                setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev]);
-            };
-
-            const handleExists = useMemo(() => {
-                const q = safeString(formData.Handle);
-                if (!q) return false;
-                return fileData.some(i => safeString(i.Handle) === q);
-            }, [formData.Handle, fileData]);
-
-            useEffect(() => { if (isLoggedIn) fetchSheetData(); }, [isLoggedIn]);
-
-            const fetchSheetData = async () => {
-                setIsLoading(true);
+            const fetchFileData = async () => {
                 try {
-                    const r = await fetch(webhookUrl + '?t=' + Date.now());
-                    const d = await r.json();
-                    if (Array.isArray(d)) {
-                        setFileData(d);
-                        addLog(`Synchronisé : ${d.length} lignes.`, 'success');
-                    }
-                } catch (e) { addLog("Erreur de connexion Sheets.", "error"); }
-                setIsLoading(false);
+                    const res = await fetch(webhookUrl);
+                    const data = await res.json();
+                    if (Array.isArray(data)) setFileData(data);
+                } catch (e) { console.error("Erreur Drive"); }
             };
 
             const handleGlobalSearch = (e) => {
                 if (e) e.preventDefault();
                 const q = safeString(searchQuery);
                 if (!q) return;
-                const matches = fileData.filter(i => safeString(i.Handle).includes(q) || safeString(i.Title).includes(q) || safeString(i['Variant Barcode']).includes(q));
+                const matches = fileData.filter(item => safeString(item.Handle).includes(q) || safeString(item.Title).includes(q) || safeString(item['Variant SKU']).includes(q));
                 const groups = {};
-                matches.forEach(m => { const h = m.Handle || 'ukn'; if(!groups[h]) groups[h] = []; groups[h].push(m); });
-                const res = Object.values(groups);
-                setSearchResults(res);
-                if (res.length === 1) { setSelectedGroup(res[0]); }
-                else { setSelectedGroup(null); }
+                matches.forEach(item => { if (!groups[item.Handle]) groups[item.Handle] = []; groups[item.Handle].push(item); });
+                const unique = Object.values(groups);
+                setSearchResults(unique);
+                setSelectedVariantsGroup(unique.length === 1 ? unique[0] : null);
                 setShowModal(true);
             };
 
-            const confirmSelection = () => {
-                if (!selectedGroup) return;
-                const v = selectedGroup[0];
-                const sizes = [...new Set(selectedGroup.map(x=>x['Option1 Value']))];
-                const colors = [...new Set(selectedGroup.map(x=>x['Option2 Value']))];
-                setFormData({
-                    ...formData,
-                    Handle: v.Handle, Title: v.Title, Body: v['Body (HTML)'], 'Variant Price': v['Variant Price'], 'Variant SKU': v['Variant SKU'], 
-                    colors, sizes, internalPhoto: v['Photo Interne'] || '',
-                    quantities: selectedGroup.reduce((a,x)=>({...a, [`${x['Option1 Value']}-${x['Option2 Value']}`]: x['Variant Inventory Qty']}), {}),
-                    eans: selectedGroup.reduce((a,x)=>({...a, [`${x['Option1 Value']}-${x['Option2 Value']}`]: x['Variant Barcode']}), {})
+            const loadForEdit = () => {
+                const first = selectedVariantsGroup[0];
+                const sizes = [...new Set(selectedVariantsGroup.map(v => v['Option1 Value']))];
+                const colors = [...new Set(selectedVariantsGroup.map(v => v['Option2 Value']))];
+                const qty = {}; const eans = {};
+                selectedVariantsGroup.forEach(v => {
+                    const k = `${v['Option1 Value']}-${v['Option2 Value']}`;
+                    qty[k] = v['Variant Inventory Qty'];
+                    eans[k] = v['Variant Barcode'];
                 });
-                setMode('edit');
+                setFormData({ ...formData, Handle: first.Handle, Title: first.Title, 'Variant Price': first['Variant Price'], sizes, colors, quantities: qty, eans, internalPhoto: first['Photo Interne'] });
                 setShowModal(false);
             };
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                if (!formData.Handle || !formData.Title) return;
                 setIsSaving(true);
                 const payloads = [];
-                const now = new Date().toISOString();
-                
-                formData.colors.forEach(c => {
-                    formData.sizes.forEach(s => {
+                formData.sizes.forEach(s => {
+                    formData.colors.forEach(c => {
                         const k = `${s}-${c}`;
                         payloads.push({
-                            Handle: formData.Handle, Title: formData.Title, 'Body (HTML)': formData.Body,
-                            'Option1 Name': 'Taille', 'Option1 Value': s,
-                            'Option2 Name': 'Couleur', 'Option2 Value': c,
-                            'Variant Price': formData['Variant Price'],
-                            'Variant Inventory Qty': formData.quantities[k] || '0',
-                            'Variant Barcode': formData.eans[k] || '',
-                            'Date Ajout': now, 'Opérateur': userName, 'Photo Interne': formData.internalPhoto, 'Status': 'active'
+                            Handle: formData.Handle, Title: formData.Title, 'Option1 Value': s, 'Option2 Value': c,
+                            'Variant Price': formData['Variant Price'], 'Variant Inventory Qty': formData.quantities[k] || '0',
+                            'Variant Barcode': formData.eans[k] || '', 'Photo Interne': formData.internalPhoto,
+                            'Opérateur': userName, 'Date Ajout': new Date().toISOString()
                         });
                     });
                 });
-
-                try {
-                    await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payloads) });
-                    addLog(`Enregistré : ${formData.Handle}`, 'success');
-                    fetchSheetData();
-                    setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', CostPerItem: '', colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '', category: [] });
-                    setMode('new');
-                } catch (e) { addLog("Erreur sauvegarde.", "error"); }
+                await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payloads) });
                 setIsSaving(false);
+                alert("Sauvegardé !");
+                fetchFileData();
             };
 
-            if (!isLoggedIn) {
-                return (
-                    <div className="min-h-screen p-4 flex items-center justify-center bg-stone-100">
-                        <div className="bg-white rounded-3xl shadow-xl max-w-sm w-full p-8 text-center border relative z-50 animate-fade-in">
-                            <div className="flex justify-center mb-6">
-                                <LogoPam />
-                            </div>
-                            <h1 className="text-xl font-bold uppercase tracking-wider mb-2">PAM STOCK</h1>
-                            <input type="text" value={userName} onChange={e=>setUserName(e.target.value)} placeholder="Votre prénom" className="w-full px-4 py-3 border-2 border-stone-100 rounded-xl mb-4 text-center font-bold outline-none focus:border-stone-900 transition-all" required />
-                            <button onClick={()=>{if(userName.trim()){setIsLoggedIn(true); localStorage.setItem('pam_username', userName.trim());}}} className="w-full py-4 bg-stone-900 text-white rounded-xl font-bold uppercase text-sm hover:bg-yellow-400 hover:text-stone-900 transition-all shadow-lg">Entrer</button>
-                        </div>
-                    </div>
-                );
-            }
+            if (!isLoggedIn) return <div className="p-10 text-center">Indiquez votre prénom...</div>;
 
             return (
-                <div id="main-app" className="min-h-screen p-2 sm:p-6">
-                    <div id="print-container" className="hidden"></div>
-                    <div className="max-w-6xl mx-auto space-y-6">
+                <div id="main-app" className="p-4 max-w-xl mx-auto space-y-6">
+                    <header className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
+                        <LogoPam className="w-12 h-12" />
+                        <span className="font-bold text-green-600">● Connecté ({fileData.length})</span>
+                    </header>
+
+                    <section className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+                        <div className="flex gap-2">
+                            <input className="flex-1 border-2 p-3 rounded-lg font-bold" placeholder="Rechercher SKU ou Nom..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                            <button onClick={handleGlobalSearch} className="bg-stone-800 text-white p-3 rounded-lg"><IconSearch /></button>
+                        </div>
+                        <button onClick={() => { setFormData({Handle:'', Title:'', sizes:[], colors:[], quantities:{}, eans:{}}); }} className="w-full bg-yellow-400 p-3 rounded-lg font-bold flex justify-center gap-2"><IconPlus /> Nouveau Produit</button>
+                    </section>
+
+                    <form onSubmit={handleSubmit} className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+                        <input className="w-full border p-2 rounded uppercase font-bold" placeholder="TITRE PRODUIT" value={formData.Title} onChange={e => setFormData({...formData, Title: e.target.value.toUpperCase()})} />
+                        <input className="w-full border p-2 rounded" placeholder="handle-produit" value={formData.Handle} onChange={e => setFormData({...formData, Handle: e.target.value.toLowerCase().replace(/ /g, '-')})} />
                         
-                        <header className="bg-white shadow-sm rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border border-stone-100 sticky top-2 z-30">
-                            <div className="flex items-center gap-3 w-full sm:w-auto">
-                                <LogoPam />
-                                <div>
-                                    <h1 className="text-lg font-bold text-stone-900 pam-boutique-title uppercase leading-none">Pam Boutique</h1>
-                                    <div className="flex items-center gap-2 text-[10px] mt-1 font-bold text-stone-400 uppercase">
-                                        <span className="bg-stone-100 px-1.5 py-0.5 rounded flex items-center gap-1 uppercase"><IconUser className="w-3 h-3"/> {userName}</span>
-                                        {isLoading ? <span className="text-amber-500 animate-pulse uppercase">Sync...</span> : <span className="text-green-600 uppercase font-bold">Connecté ({fileData.length})</span>}
-                                    </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="border p-2 rounded">
+                                <p className="text-xs font-bold mb-1">Tailles</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {TAILLES_DISPONIBLES.map(t => (
+                                        <button type="button" key={t} onClick={() => handleCheckboxChange('sizes', t)} className={`text-xs p-1 border rounded ${formData.sizes.includes(t) ? 'bg-black text-white' : ''}`}>{t}</button>
+                                    ))}
                                 </div>
                             </div>
-                            <div className="flex bg-stone-100 rounded-xl p-1 gap-1 w-full sm:w-auto">
-                                <button onClick={()=>setActiveTab('stock')} className={`flex-1 px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeTab==='stock' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-400'}`}>Stock</button>
-                                <button onClick={()=>setActiveTab('rapport')} className={`flex-1 px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all ${activeTab==='rapport' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-400'}`}>Rapport</button>
+                            <div className="border p-2 rounded">
+                                <p className="text-xs font-bold mb-1">Couleurs</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {COULEURS_DISPONIBLES.map(c => (
+                                        <button type="button" key={c} onClick={() => handleCheckboxChange('colors', c)} className={`text-xs p-1 border rounded ${formData.colors.includes(c) ? 'bg-black text-white' : ''}`}>{c}</button>
+                                    ))}
+                                </div>
                             </div>
-                        </header>
+                        </div>
 
-                        {activeTab === 'rapport' ? <WeeklyReport fileData={fileData} /> : (
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in">
-                                
-                                <div className="lg:col-span-3 space-y-6">
-                                    <div className="bg-white shadow-sm rounded-2xl p-4 sm:p-6 border border-stone-100">
-                                        <h2 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-3">1. Identification rapide</h2>
-                                        <form onSubmit={handleGlobalSearch} className="flex gap-2">
-                                            <div className="relative flex-1">
-                                                <IconSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
-                                                <input type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Scanner ou taper un titre..." className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl font-bold focus:bg-white outline-none" />
-                                            </div>
-                                            <button type="submit" className="px-6 py-3 bg-stone-900 text-white font-bold rounded-xl uppercase text-xs">OK</button>
-                                        </form>
-                                    </div>
-
-                                    <form onSubmit={handleSubmit} className={`bg-white shadow-sm rounded-2xl p-6 border ${mode === 'edit' ? 'border-blue-300' : 'border-stone-100'} space-y-8 relative`}>
-                                        <section className="space-y-4">
-                                            <div className="flex justify-between items-center border-b pb-2">
-                                                <h3 className="font-bold text-stone-800 uppercase text-xs tracking-widest">2. Fiche Produit</h3>
-                                                <button type="button" onClick={()=>{setMode('new'); setFormData({...formData, Title:'', Handle:'', colors:[], sizes:[], quantities:{}, eans:{}, internalPhoto:''})}} className="text-[10px] font-bold text-stone-400 underline uppercase">Vider</button>
-                                            </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                <div className="sm:col-span-2">
-                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">Titre *</label>
-                                                    <input type="text" name="Title" value={formData.Title} onChange={e=>setFormData({...formData, Title: e.target.value.toUpperCase()})} placeholder="VESTE COCO" className="w-full px-4 py-3 border border-stone-200 rounded-xl font-bold uppercase text-lg outline-none" required />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">Lien (Handle) *</label>
-                                                    <input type="text" name="Handle" value={formData.Handle} onChange={e=>setFormData({...formData, Handle: e.target.value.toLowerCase().replace(/\s+/g,'-')})} placeholder="veste-coco" className="w-full px-4 py-2 border border-stone-200 rounded-xl text-sm outline-none" required />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">SKU Base</label>
-                                                    <input type="text" value={formData['Variant SKU']} onChange={e=>setFormData({...formData, 'Variant SKU': e.target.value})} placeholder="REF-COCO" className="w-full px-4 py-2 border border-stone-200 rounded-xl text-sm font-mono outline-none" />
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                        <section className="space-y-4">
-                                            <h3 className="font-bold text-stone-800 uppercase text-xs tracking-widest border-b pb-2 uppercase">3. Tarifs & Stock</h3>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 uppercase">Prix de vente (€) *</label>
-                                                    <input type="number" step="0.01" value={formData['Variant Price']} onChange={e=>setFormData({...formData, 'Variant Price': e.target.value})} className="w-full px-4 py-3 border-2 border-green-200 bg-green-50 text-green-800 font-bold rounded-xl text-lg outline-none" required />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1 uppercase">Tailles & Couleurs</label>
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                        {TAILLES_DISPONIBLES.map(s => (
-                                                            <button type="button" key={s} onClick={()=>{setFormData(p=>({...p, sizes: p.sizes.includes(s) ? p.sizes.filter(x=>x!==s) : [...p.sizes, s]}))}} className={`px-2 py-1 rounded text-[10px] font-bold border ${formData.sizes.includes(s) ? 'bg-stone-900 text-white' : 'bg-white text-stone-400'}`}>{s}</button>
-                                                        ))}
+                        {formData.sizes.length > 0 && formData.colors.length > 0 && (
+                            <div className="space-y-2 border-t pt-2">
+                                {formData.colors.map(c => (
+                                    <div key={c} className="text-xs">
+                                        <p className="font-bold">{c}</p>
+                                        <div className="grid grid-cols-3 gap-1">
+                                            {formData.sizes.map(s => {
+                                                const k = `${s}-${c}`;
+                                                return (
+                                                    <div key={s} className="bg-stone-50 p-1 rounded">
+                                                        <p>{s}</p>
+                                                        <input className="w-full border text-center" type="number" placeholder="Qté" value={formData.quantities[k] || ''} onChange={e => setFormData({...formData, quantities: {...formData.quantities, [k]: e.target.value}})} />
+                                                        <button type="button" onClick={() => setFormData({...formData, eans: {...formData.eans, [k]: generateEAN()}})} className="text-[8px] text-blue-500 underline">EAN</button>
                                                     </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-wrap gap-1 mt-4">
-                                                {COULEURS_DISPONIBLES.map(c => (
-                                                    <button type="button" key={c} onClick={()=>{setFormData(p=>({...p, colors: p.colors.includes(c) ? p.colors.filter(x=>x!==c) : [...p.colors, c]}))}} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${formData.colors.includes(c) ? 'bg-yellow-400 border-yellow-500 text-stone-900' : 'bg-white text-stone-400'}`}>{c}</button>
-                                                ))}
-                                            </div>
-
-                                            {formData.sizes.length > 0 && formData.colors.length > 0 && (
-                                                <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-4 animate-fade-in mt-4">
-                                                    {formData.colors.map(color => (
-                                                        <div key={color} className="bg-white p-3 rounded-xl border border-stone-200 shadow-sm">
-                                                            <h5 className="font-bold text-[10px] mb-2 uppercase text-stone-400 tracking-widest uppercase">{color}</h5>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                                                {formData.sizes.map(size => {
-                                                                    const k = `${size}-${color}`;
-                                                                    return (
-                                                                        <div key={size} className="space-y-1">
-                                                                            <label className="block text-[8px] font-bold text-stone-400 uppercase">{size}</label>
-                                                                            <input type="number" value={formData.quantities[k]||''} onChange={e=>setFormData(p=>({...p, quantities: {...p.quantities, [k]: e.target.value}}))} className="w-full p-1 border rounded text-center font-bold text-blue-700 text-xs outline-none focus:ring-1 focus:ring-blue-500" placeholder="0" />
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </section>
-
-                                        <button type="submit" disabled={isSaving} className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold uppercase tracking-widest text-sm shadow-xl hover:bg-black transition-all disabled:opacity-50">
-                                            {isSaving ? "Envoi..." : (mode==='edit' ? "Mettre à jour" : "Sauvegarder")}
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <div className="hidden lg:flex flex-col h-full bg-white shadow-sm rounded-2xl p-4 border border-stone-100 max-h-[800px]">
-                                    <h3 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-4 uppercase">Journal de bord</h3>
-                                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 uppercase">
-                                        {logs.length === 0 ? <p className="text-stone-300 text-[10px] italic">Aucune action...</p> : [...logs].map(l => (
-                                            <div key={l.id} className="text-[9px] border-l-2 pl-2 py-1 border-stone-100">
-                                                <span className="text-stone-300 block mb-0.5 font-mono">{l.time}</span>
-                                                <span className={`${l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':'text-stone-600'} font-bold`}>{l.message}</span>
-                                            </div>
-                                        ))}
+                                                )
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-
+                                ))}
                             </div>
                         )}
 
-                        {showModal && (
-                            <div className="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in">
-                                    <div className="p-4 border-b flex justify-between items-center bg-stone-50 uppercase">
-                                        <h3 className="font-bold text-xs uppercase tracking-widest uppercase">Résultats</h3>
-                                        <button onClick={()=>setShowModal(false)} className="bg-stone-200 rounded-full p-1"><IconX className="w-4 h-4"/></button>
-                                    </div>
-                                    <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar">
-                                        {searchResults.length > 0 ? searchResults.map((g, idx) => (
-                                            <div key={idx} onClick={()=>setSelectedGroup(g)} className={`p-3 rounded-2xl border-2 cursor-pointer transition-all ${selectedGroup===g ? 'border-stone-900 bg-stone-50' : 'border-stone-100 hover:border-stone-300'}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg bg-stone-100 overflow-hidden shrink-0 flex items-center justify-center">
-                                                        {(g[0]['Photo Interne'] || g[0]['Image Src']) ? <img src={g[0]['Photo Interne'] || g[0]['Image Src']} className="w-full h-full object-cover" /> : <IconImage className="text-stone-300" />}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="font-bold text-xs uppercase truncate leading-tight uppercase">{g[0].Title}</div>
-                                                        <div className="text-[9px] font-bold text-blue-600 uppercase mt-0.5">{g.length} variantes</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )) : <p className="text-center text-xs text-stone-400">Aucun produit trouvé</p>}
-                                    </div>
-                                    <div className="p-4 bg-stone-50">
-                                        {selectedGroup && <button onClick={confirmSelection} className="w-full py-3 bg-stone-900 text-white rounded-2xl font-bold uppercase text-[10px] uppercase shadow-md">Éditer cette fiche</button>}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        <button className="w-full bg-stone-900 text-white p-4 rounded-xl font-bold uppercase" disabled={isSaving}>Enregistrer la fiche</button>
+                    </form>
 
-                    </div>
+                    {showModal && selectedVariantsGroup && (
+                        <div className="fixed inset-0 bg-black/50 p-4 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center space-y-4">
+                                <h3 className="font-bold uppercase">{selectedVariantsGroup[0].Title}</h3>
+                                <div className="w-32 h-32 mx-auto bg-stone-100 rounded-lg overflow-hidden border">
+                                    <img src={selectedVariantsGroup[0]['Photo Interne']} className="w-full h-full object-cover" />
+                                </div>
+                                <button onClick={() => window.print()} className="w-full bg-black text-white p-3 rounded-lg flex justify-center gap-2"><IconPrinter /> Imprimer étiquettes</button>
+                                <button onClick={loadForEdit} className="w-full border p-3 rounded-lg font-bold">Modifier / Stock</button>
+                                <button onClick={() => setShowModal(false)} className="text-stone-400">Fermer</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
