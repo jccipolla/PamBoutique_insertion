@@ -10,74 +10,151 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         body { -webkit-tap-highlight-color: transparent; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
         .pam-boutique-title { font-family: 'Georgia', serif; letter-spacing: 0.5px; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Format d'impression thermique 3,5x2,5 cm STRICT */
         @media print {
             @page { margin: 0; size: 35mm 25mm; }
-            body { margin: 0; padding: 0; background: white; }
+            body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; }
             #main-app { display: none !important; }
-            #print-container { display: block !important; width: 100%; }
+            #print-container { display: block !important; width: 100%; background: white; }
             .print-label { 
                 width: 35mm; height: 25mm; padding: 1mm; overflow: hidden; page-break-after: always;
                 display: flex; flex-direction: column; align-items: center; justify-content: space-between; 
-                font-family: sans-serif; box-sizing: border-box;
+                font-family: sans-serif; background: white; box-sizing: border-box;
             }
-            .print-label-title { font-size: 6pt; font-weight: bold; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .print-label-title { font-size: 6pt; font-weight: bold; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1mm;}
+            .print-label-info { font-size: 6pt; text-align: center; font-weight: bold; }
             .print-label-barcode { height: 8mm; width: auto; max-width: 100%; }
-            .print-label-price { font-size: 7pt; font-weight: bold; }
+            .print-label-price { font-size: 7pt; font-weight: bold; margin-bottom: 1mm; }
+            .no-barcode { height: 8mm; border: 1px dashed #ccc; width: 90%; font-size: 5pt; display: flex; align-items: center; justify-content: center; }
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 pb-10">
+<body class="bg-stone-50 text-stone-800 font-sans pb-10">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        const IconSearch = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
-        const IconPlus = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-        const IconPrinter = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
+        // --- Icônes ---
+        const IconSearch = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+        const IconPlus = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconSave = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
+        const IconCheck = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const IconRefresh = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 0 20.49 15"/></svg>;
+        const IconX = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const IconImage = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
+        const IconBarcode = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>;
+        const IconPrinter = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
+        const IconSparkles = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M3 5h4"/></svg>;
 
+        const LogoPam = ({ className = "w-16 h-16" }) => (
+            <img src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" alt="Pam Boutique" className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`} />
+        );
+
+        const CATEGORIES_DISPONIBLES = ['Vêtements', 'Vestes & Manteaux', 'Pulls & Gilets', 'Robes', 'Tops & T-shirts', 'Pantalons & Jeans', 'Accessoires'];
         const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '34', '36', '38', '40', '42', '44'];
         const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Camel', 'Kaki', 'Marine'];
 
         const safeString = (val) => val != null ? String(val).toLowerCase().trim().replace(/[\s-]/g, '') : '';
-        const generateEAN = () => "200" + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0') + "0";
+        const generateRandomEAN13 = () => {
+            let ean = "200" + Math.floor(Math.random() * 1000000000).toString().padStart(9, '0');
+            let sum = 0;
+            for (let i = 0; i < 12; i++) { sum += parseInt(ean[i]) * (i % 2 === 0 ? 1 : 3); }
+            return ean + ((10 - (sum % 10)) % 10);
+        };
 
         function App() {
             const webhookUrl = 'https://script.google.com/macros/s/AKfycbwEL3w5gIWTMaV-hxo4MT4vGqFe9K0JludBrBpo95sqPsSxHcX_b9_UQVSuE3UGN7JV6w/exec';
-            const [userName] = useState(localStorage.getItem('pam_username') || '');
-            const [isLoggedIn, setIsLoggedIn] = useState(!!userName);
+            
+            const [userName] = useState(localStorage.getItem('pam_username') || 'Equipe');
+            const [isLoggedIn] = useState(true);
             const [fileData, setFileData] = useState([]);
+            const [isLoading, setIsLoading] = useState(false);
+            const [isSaving, setIsSaving] = useState(false);
+            const [logs, setLogs] = useState([]);
+            
+            // UX States
             const [searchQuery, setSearchQuery] = useState('');
+            const [showColorDropdown, setShowColorDropdown] = useState(false);
+            const [mode, setMode] = useState('new'); 
             const [showModal, setShowModal] = useState(false);
             const [selectedVariantsGroup, setSelectedVariantsGroup] = useState([]);
-            const [isSaving, setIsSaving] = useState(false);
-            const [formData, setFormData] = useState({ Handle: '', Title: '', 'Variant Price': '', sizes: [], colors: [], quantities: {}, eans: {}, internalPhoto: '' });
 
-            useEffect(() => { if (isLoggedIn) fetchFileData(); }, [isLoggedIn]);
+            const [formData, setFormData] = useState({
+                Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: ''
+            });
+            const [formStatus, setFormStatus] = useState({ type: '', message: '' });
 
-            const fetchFileData = async () => {
+            const [customSizeInput, setCustomSizeInput] = useState('');
+            const [dynamicSizes, setDynamicSizes] = useState([]);
+            const [customCatInput, setCustomCatInput] = useState('');
+            const [dynamicCats, setDynamicCats] = useState([]);
+
+            useEffect(() => { fetchSheetData(); }, []);
+
+            const fetchSheetData = async () => {
+                setIsLoading(true);
                 try {
-                    const res = await fetch(webhookUrl);
-                    const data = await res.json();
-                    if (Array.isArray(data)) setFileData(data);
-                } catch (e) { console.error("Erreur Drive"); }
+                    const response = await fetch(webhookUrl);
+                    const data = await response.json();
+                    if (Array.isArray(data)) {
+                        setFileData(data);
+                        addLog(`Drive Connecté : ${data.length} variantes.`, 'success');
+                    }
+                } catch (error) {
+                    addLog(`Erreur Drive.`, 'error');
+                }
+                setIsLoading(false);
+            };
+
+            const addLog = (message, type = 'info') => {
+                setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev]);
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                const finalValue = name === 'Title' ? String(value).toUpperCase() : value;
+                setFormData(prev => ({ ...prev, [name]: finalValue }));
+                setFormStatus({ type: '', message: '' });
+            };
+
+            const handleCheckboxChange = (type, value) => {
+                setFormData(prev => {
+                    const list = prev[type] || [];
+                    const newList = list.includes(value) ? list.filter(item => item !== value) : [...list, value];
+                    return { ...prev, [type]: newList };
+                });
             };
 
             const handleGlobalSearch = (e) => {
                 if (e) e.preventDefault();
-                const q = safeString(searchQuery);
-                if (!q) return;
-                const matches = fileData.filter(item => safeString(item.Handle).includes(q) || safeString(item.Title).includes(q) || safeString(item['Variant SKU']).includes(q));
+                if (!searchQuery) return;
+                const query = safeString(searchQuery);
+                const matches = fileData.filter(item => 
+                    safeString(item.Handle).includes(query) || 
+                    safeString(item.Title).includes(query) ||
+                    safeString(item['Variant SKU']).includes(query)
+                );
                 const groups = {};
-                matches.forEach(item => { if (!groups[item.Handle]) groups[item.Handle] = []; groups[item.Handle].push(item); });
+                matches.forEach(item => { 
+                    const h = item.Handle || 'unknown';
+                    if (!groups[h]) groups[h] = [];
+                    groups[h].push(item);
+                });
                 const unique = Object.values(groups);
-                setSearchResults(unique);
                 setSelectedVariantsGroup(unique.length === 1 ? unique[0] : null);
                 setShowModal(true);
             };
 
-            const loadForEdit = () => {
+            const loadProductToForm = () => {
+                if (!selectedVariantsGroup || selectedVariantsGroup.length === 0) return;
                 const first = selectedVariantsGroup[0];
                 const sizes = [...new Set(selectedVariantsGroup.map(v => v['Option1 Value']))];
                 const colors = [...new Set(selectedVariantsGroup.map(v => v['Option2 Value']))];
@@ -87,8 +164,30 @@
                     qty[k] = v['Variant Inventory Qty'];
                     eans[k] = v['Variant Barcode'];
                 });
-                setFormData({ ...formData, Handle: first.Handle, Title: first.Title, 'Variant Price': first['Variant Price'], sizes, colors, quantities: qty, eans, internalPhoto: first['Photo Interne'] });
+                
+                setFormData({
+                    Handle: first.Handle, Title: first.Title, Body: first['Body (HTML)'] || '',
+                    Type: first.Type || '', Tags: first.Tags || '', 'Variant SKU': String(first['Variant SKU'] || '').split('-')[0],
+                    'Variant Price': first['Variant Price'], 'Variant Compare At Price': first['Variant Compare At Price'] || '',
+                    CostPerItem: first['Cost per item'] || '', Grams: first['Variant Grams'] || '',
+                    ImageSrc: first['Image Src'] || '', category: String(first['Product Category'] || '').split(' > '),
+                    colors, sizes, quantities: qty, eans, internalPhoto: first['Photo Interne'] || ''
+                });
+                setMode('edit');
                 setShowModal(false);
+            };
+
+            const handleGenerateEANs = () => {
+                setFormData(prev => {
+                    const newEans = { ...prev.eans };
+                    prev.sizes.forEach(s => {
+                        prev.colors.forEach(c => {
+                            const k = `${s}-${c}`;
+                            if (!newEans[k]) newEans[k] = generateRandomEAN13();
+                        });
+                    });
+                    return { ...prev, eans: newEans };
+                });
             };
 
             const handleSubmit = async (e) => {
@@ -106,65 +205,130 @@
                         });
                     });
                 });
-                await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payloads) });
+                try {
+                    await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payloads) });
+                    addLog(`Sauvegardé : ${formData.Handle}`, 'success');
+                    fetchSheetData();
+                } catch(e) { addLog("Erreur save", "error"); }
                 setIsSaving(false);
-                alert("Sauvegardé !");
-                fetchFileData();
             };
 
-            if (!isLoggedIn) return <div className="p-10 text-center">Indiquez votre prénom...</div>;
+            const handlePhotoCapture = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 300; canvas.height = 300;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, 300, 300);
+                        setFormData(prev => ({ ...prev, internalPhoto: canvas.toDataURL('image/jpeg', 0.4) }));
+                    };
+                };
+            };
+
+            const labelsToPrint = useMemo(() => {
+                const labels = [];
+                if (showModal && selectedVariantsGroup) {
+                    selectedVariantsGroup.forEach(v => {
+                        const q = parseInt(v['Variant Inventory Qty'], 10) || 0;
+                        for(let i=0; i<q; i++) labels.push({ title: v.Title, size: v['Option1 Value'], color: v['Option2 Value'], ean: v['Variant Barcode'], price: v['Variant Price'] });
+                    });
+                } else {
+                    formData.sizes.forEach(s => {
+                        formData.colors.forEach(c => {
+                            const k = `${s}-${c}`;
+                            const q = parseInt(formData.quantities[k], 10) || 0;
+                            for(let i=0; i<q; i++) labels.push({ title: formData.Title, size: s, color: c, ean: formData.eans[k], price: formData['Variant Price'] });
+                        });
+                    });
+                }
+                return labels;
+            }, [showModal, selectedVariantsGroup, formData]);
 
             return (
+                <>
+                <div id="print-container" className="hidden">
+                    {labelsToPrint.map((lbl, idx) => (
+                        <div key={idx} className="print-label">
+                            <div className="print-label-title">{lbl.title}</div>
+                            <div className="print-label-info">{lbl.size} | {lbl.color}</div>
+                            {lbl.ean ? <img className="print-label-barcode" src={`https://bwipjs-api.metafloor.com/?bcid=ean13&text=${lbl.ean}&scale=2&height=8&textxalign=center&textsize=8`} /> : <div className="no-barcode">SANS EAN</div>}
+                            <div className="print-label-price">{lbl.price} €</div>
+                        </div>
+                    ))}
+                </div>
+
                 <div id="main-app" className="p-4 max-w-xl mx-auto space-y-6">
-                    <header className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
+                    <header className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-stone-100">
                         <LogoPam className="w-12 h-12" />
-                        <span className="font-bold text-green-600">● Connecté ({fileData.length})</span>
+                        <div className="text-right">
+                            <span className="block text-xs font-bold text-green-600 uppercase">● Connecté</span>
+                            <span className="text-[10px] text-stone-400">{fileData.length} variantes au total</span>
+                        </div>
                     </header>
 
-                    <section className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+                    <section className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 space-y-4">
                         <div className="flex gap-2">
-                            <input className="flex-1 border-2 p-3 rounded-lg font-bold" placeholder="Rechercher SKU ou Nom..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                            <button onClick={handleGlobalSearch} className="bg-stone-800 text-white p-3 rounded-lg"><IconSearch /></button>
+                            <div className="relative flex-1">
+                                <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                                <input className="w-full pl-10 pr-3 py-3 border-2 border-stone-200 rounded-lg font-bold outline-none focus:border-stone-900 transition-colors" placeholder="Rechercher SKU ou Nom..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                            </div>
+                            <button onClick={handleGlobalSearch} className="bg-stone-900 text-white p-3 rounded-lg px-5 font-bold hover:bg-black transition-colors">OK</button>
                         </div>
-                        <button onClick={() => { setFormData({Handle:'', Title:'', sizes:[], colors:[], quantities:{}, eans:{}}); }} className="w-full bg-yellow-400 p-3 rounded-lg font-bold flex justify-center gap-2"><IconPlus /> Nouveau Produit</button>
+                        <button onClick={() => { setMode('new'); setFormData({Handle:'', Title:'', sizes:[], colors:[], quantities:{}, eans:{}}); }} className="w-full bg-yellow-400 p-3 rounded-lg font-bold flex justify-center items-center gap-2 hover:bg-yellow-500 transition-all"><IconPlus /> Nouveau Produit</button>
                     </section>
 
-                    <form onSubmit={handleSubmit} className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-                        <input className="w-full border p-2 rounded uppercase font-bold" placeholder="TITRE PRODUIT" value={formData.Title} onChange={e => setFormData({...formData, Title: e.target.value.toUpperCase()})} />
-                        <input className="w-full border p-2 rounded" placeholder="handle-produit" value={formData.Handle} onChange={e => setFormData({...formData, Handle: e.target.value.toLowerCase().replace(/ /g, '-')})} />
+                    <form onSubmit={handleSubmit} className="bg-white p-4 rounded-xl shadow-sm border border-stone-100 space-y-4">
+                        <div className="flex items-center justify-between border-b pb-2">
+                            <h2 className="text-sm font-bold uppercase tracking-widest text-stone-400">{mode === 'edit' ? 'Modification' : 'Création'}</h2>
+                            {mode === 'edit' && <button type="button" onClick={() => setMode('new')} className="text-[10px] underline text-blue-500">Mode Création</button>}
+                        </div>
+                        <input className="w-full border p-3 rounded-lg uppercase font-bold text-lg focus:ring-2 focus:ring-stone-900 outline-none" placeholder="TITRE DU PRODUIT" name="Title" value={formData.Title} onChange={handleInputChange} />
+                        <input className="w-full border p-3 rounded-lg text-sm focus:ring-2 focus:ring-stone-900 outline-none font-medium" placeholder="handle-produit" name="Handle" value={formData.Handle} onChange={handleInputChange} />
                         
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="border p-2 rounded">
-                                <p className="text-xs font-bold mb-1">Tailles</p>
-                                <div className="flex flex-wrap gap-1">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="border p-3 rounded-lg bg-stone-50">
+                                <p className="text-[10px] font-bold mb-2 uppercase text-stone-400">Tailles</p>
+                                <div className="flex flex-wrap gap-1.5">
                                     {TAILLES_DISPONIBLES.map(t => (
-                                        <button type="button" key={t} onClick={() => handleCheckboxChange('sizes', t)} className={`text-xs p-1 border rounded ${formData.sizes.includes(t) ? 'bg-black text-white' : ''}`}>{t}</button>
+                                        <button type="button" key={t} onClick={() => handleCheckboxChange('sizes', t)} className={`text-[10px] font-bold px-2 py-1.5 border rounded-md transition-colors ${formData.sizes.includes(t) ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-600'}`}>{t}</button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="border p-2 rounded">
-                                <p className="text-xs font-bold mb-1">Couleurs</p>
-                                <div className="flex flex-wrap gap-1">
+                            <div className="border p-3 rounded-lg bg-stone-50">
+                                <p className="text-[10px] font-bold mb-2 uppercase text-stone-400">Couleurs</p>
+                                <div className="flex flex-wrap gap-1.5">
                                     {COULEURS_DISPONIBLES.map(c => (
-                                        <button type="button" key={c} onClick={() => handleCheckboxChange('colors', c)} className={`text-xs p-1 border rounded ${formData.colors.includes(c) ? 'bg-black text-white' : ''}`}>{c}</button>
+                                        <button type="button" key={c} onClick={() => handleCheckboxChange('colors', c)} className={`text-[10px] font-bold px-2 py-1.5 border rounded-md transition-colors ${formData.colors.includes(c) ? 'bg-stone-900 text-white border-stone-900 shadow-md' : 'bg-white text-stone-600'}`}>{c}</button>
                                     ))}
                                 </div>
                             </div>
                         </div>
 
                         {formData.sizes.length > 0 && formData.colors.length > 0 && (
-                            <div className="space-y-2 border-t pt-2">
+                            <div className="space-y-4 border-t pt-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400">Stocks & EAN</h3>
+                                    <button type="button" onClick={handleGenerateEANs} className="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-bold border border-blue-200">Auto EAN</button>
+                                </div>
                                 {formData.colors.map(c => (
-                                    <div key={c} className="text-xs">
-                                        <p className="font-bold">{c}</p>
-                                        <div className="grid grid-cols-3 gap-1">
+                                    <div key={c} className="bg-stone-50 p-2 rounded-lg border border-stone-100">
+                                        <p className="font-bold text-[11px] mb-2">{c}</p>
+                                        <div className="grid grid-cols-2 gap-2">
                                             {formData.sizes.map(s => {
                                                 const k = `${s}-${c}`;
                                                 return (
-                                                    <div key={s} className="bg-stone-50 p-1 rounded">
-                                                        <p>{s}</p>
-                                                        <input className="w-full border text-center" type="number" placeholder="Qté" value={formData.quantities[k] || ''} onChange={e => setFormData({...formData, quantities: {...formData.quantities, [k]: e.target.value}})} />
-                                                        <button type="button" onClick={() => setFormData({...formData, eans: {...formData.eans, [k]: generateEAN()}})} className="text-[8px] text-blue-500 underline">EAN</button>
+                                                    <div key={s} className="bg-white p-2 rounded border border-stone-200 shadow-sm flex flex-col gap-1">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="font-bold text-[10px] text-stone-400">{s}</span>
+                                                            <input className="w-10 border-b border-stone-300 text-center text-xs font-bold text-blue-600 outline-none" type="number" value={formData.quantities[k] || ''} onChange={e => setFormData({...formData, quantities: {...formData.quantities, [k]: e.target.value}})} />
+                                                        </div>
+                                                        <input className="w-full text-[9px] font-mono border-none bg-stone-50 rounded p-1 text-stone-500" placeholder="EAN13" value={formData.eans[k] || ''} onChange={e => setFormData({...formData, eans: {...formData.eans, [k]: e.target.value}})} />
                                                     </div>
                                                 )
                                             })}
@@ -174,23 +338,46 @@
                             </div>
                         )}
 
-                        <button className="w-full bg-stone-900 text-white p-4 rounded-xl font-bold uppercase" disabled={isSaving}>Enregistrer la fiche</button>
+                        <div className="bg-stone-50 p-3 rounded-lg border-2 border-dashed border-stone-200 flex items-center justify-between">
+                            <label className="flex items-center gap-2 cursor-pointer flex-1">
+                                <IconCamera className="text-stone-400" />
+                                <span className="text-xs font-bold text-stone-500">Prendre photo usine</span>
+                                <input type="file" capture="environment" className="hidden" onChange={handlePhotoCapture} />
+                            </label>
+                            {formData.internalPhoto && <img src={formData.internalPhoto} className="w-10 h-10 rounded object-cover border" />}
+                        </div>
+
+                        <button className="w-full bg-stone-900 text-white p-4 rounded-xl font-bold uppercase tracking-widest shadow-xl disabled:opacity-50" disabled={isSaving}>
+                            {isSaving ? 'Envoi...' : 'Enregistrer la fiche'}
+                        </button>
                     </form>
 
-                    {showModal && selectedVariantsGroup && (
-                        <div className="fixed inset-0 bg-black/50 p-4 flex items-center justify-center z-50">
-                            <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center space-y-4">
-                                <h3 className="font-bold uppercase">{selectedVariantsGroup[0].Title}</h3>
-                                <div className="w-32 h-32 mx-auto bg-stone-100 rounded-lg overflow-hidden border">
-                                    <img src={selectedVariantsGroup[0]['Photo Interne']} className="w-full h-full object-cover" />
-                                </div>
-                                <button onClick={() => window.print()} className="w-full bg-black text-white p-3 rounded-lg flex justify-center gap-2"><IconPrinter /> Imprimer étiquettes</button>
-                                <button onClick={loadForEdit} className="w-full border p-3 rounded-lg font-bold">Modifier / Stock</button>
-                                <button onClick={() => setShowModal(false)} className="text-stone-400">Fermer</button>
+                    {showModal && (
+                        <div className="fixed inset-0 bg-stone-900/90 backdrop-blur-sm p-4 flex items-center justify-center z-50 animate-fade-in">
+                            <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center space-y-5 shadow-2xl border border-stone-200">
+                                {selectedVariantsGroup ? (
+                                    <>
+                                        <h3 className="font-bold uppercase text-lg">{selectedVariantsGroup[0].Title}</h3>
+                                        <div className="w-40 h-40 mx-auto bg-stone-100 rounded-xl overflow-hidden border-2 border-stone-200 shadow-inner">
+                                            {selectedVariantsGroup[0]['Photo Interne'] ? <img src={selectedVariantsGroup[0]['Photo Interne']} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-stone-300 font-bold uppercase text-[10px]">Pas de photo</div>}
+                                        </div>
+                                        <button onClick={() => window.print()} className="w-full bg-stone-900 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-bold shadow-lg hover:bg-black transition-all">
+                                            <IconPrinter /> Imprimer {labelsToPrint.length} étiquettes
+                                        </button>
+                                        <button onClick={loadProductToForm} className="w-full border-2 border-stone-200 py-3 rounded-xl font-bold text-stone-600 hover:bg-stone-50 transition-all">✏️ Éditer Stocks / EAN</button>
+                                    </>
+                                ) : (
+                                    <div className="py-10">
+                                        <p className="font-bold text-stone-500 mb-6">Produit introuvable</p>
+                                        <button onClick={() => handleCreateDirect()} className="w-full bg-yellow-400 py-3 rounded-xl font-bold uppercase tracking-widest shadow-md">Créer la fiche</button>
+                                    </div>
+                                )}
+                                <button onClick={() => setShowModal(false)} className="text-stone-400 font-bold uppercase text-[10px] tracking-widest">Fermer</button>
                             </div>
                         </div>
                     )}
                 </div>
+                </>
             );
         }
 
