@@ -721,12 +721,71 @@
                 setIsGeneratingAI(true);
                 addLog("Génération IA en cours...", "info");
                 try {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                    const mockText = `<p>Découvrez notre modèle <strong>${formData.Title}</strong>, conçu spécialement pour vous. Fabriqué avec soin, ce produit allie élégance et confort. Parfait pour toutes vos occasions.</p>`;
-                    setFormData(prev => ({ ...prev, Body: mockText }));
-                    addLog("Description IA ajoutée.", "success");
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    const title = formData.Title;
+                    const prix = formData['Variant Price'] ? `${formData['Variant Price']} €` : null;
+                    const couleurs = (formData.colors || []);
+                    const tailles = (formData.sizes || []);
+                    const categorie = (formData.category || []).join(', ');
+                    const tags = (formData.Tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+                    // Extraire les infos depuis les tags
+                    const matieres = tags.filter(t => TAGS_TEXTILES['Matières'].includes(t));
+                    const entretien = tags.filter(t => TAGS_TEXTILES['Entretien'].includes(t));
+                    const caracteristiques = tags.filter(t => TAGS_TEXTILES['Caractéristiques'].includes(t));
+                    const saison = tags.find(t => TAGS_TEXTILES['Saisonnalité'].includes(t));
+
+                    // Phrases d'accroche variées
+                    const accroches = [
+                        `Craquez pour notre <strong>${title}</strong>`,
+                        `Découvrez le <strong>${title}</strong>`,
+                        `La nouvelle pièce incontournable : le <strong>${title}</strong>`,
+                        `Misez sur l'élégance avec notre <strong>${title}</strong>`,
+                        `Notre <strong>${title}</strong> s'impose comme une pièce essentielle`,
+                    ];
+                    const accroche = accroches[Math.floor(Math.random() * accroches.length)];
+
+                    let paragraphs = [];
+
+                    // § 1 : Accroche + couleurs + catégorie
+                    let p1 = accroche;
+                    if (couleurs.length > 0) {
+                        const couleursStr = couleurs.length === 1 ? `en <strong>${couleurs[0]}</strong>` : `disponible en <strong>${couleurs.join('</strong>, <strong>')}</strong>`;
+                        p1 += `, ${couleursStr}`;
+                    }
+                    if (categorie) p1 += ` — une pièce de la collection <em>${categorie}</em>`;
+                    p1 += '.';
+                    paragraphs.push(`<p>${p1}</p>`);
+
+                    // § 2 : Matière + caractéristiques
+                    let p2parts = [];
+                    if (matieres.length > 0) p2parts.push(`Composé en <strong>${matieres.join(', ')}</strong>, il offre douceur et confort au quotidien`);
+                    if (caracteristiques.length > 0) {
+                        const caracs = caracteristiques.slice(0, 3).join(', ').toLowerCase();
+                        p2parts.push(`Sa coupe <strong>${caracs}</strong> s'adapte à toutes les morphologies`);
+                    } else if (tailles.length > 0) {
+                        p2parts.push(`Disponible du <strong>${tailles[0]}</strong> au <strong>${tailles[tailles.length - 1]}</strong>`);
+                    }
+                    if (p2parts.length > 0) paragraphs.push(`<p>${p2parts.join('. ')}.</p>`);
+
+                    // § 3 : Saison + prix
+                    let p3parts = [];
+                    if (saison) p3parts.push(`Idéal pour la saison <strong>${saison}</strong>`);
+                    if (prix) p3parts.push(`À retrouver au prix de <strong>${prix}</strong>`);
+                    if (p3parts.length > 0) paragraphs.push(`<p>${p3parts.join('. ')}.</p>`);
+
+                    // § 4 : Conseils d'entretien
+                    if (entretien.length > 0) {
+                        const conseils = entretien.slice(0, 3).join(' · ');
+                        paragraphs.push(`<p><strong>Conseils d'entretien :</strong> ${conseils}.</p>`);
+                    }
+
+                    const generated = paragraphs.join('\n');
+                    setFormData(prev => ({ ...prev, Body: generated }));
+                    addLog("Description générée depuis les informations du produit.", "success");
                 } catch (error) {
-                    setFormStatus({ type: 'error', message: "L'IA est momentanément indisponible." });
+                    setFormStatus({ type: 'error', message: "Erreur lors de la génération." });
                 }
                 setIsGeneratingAI(false);
             };
