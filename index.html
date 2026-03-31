@@ -327,19 +327,21 @@
             // Vérifie qu'une URL est valide pour Shopify (HTTPS uniquement)
             const isValidShopifyImageUrl = (url) => url && typeof url === 'string' && url.trim().startsWith('https://');
 
-            // Mapping catégories internes FR → taxonomie Shopify officielle EN
+            // Mapping catégories internes FR → taxonomie Shopify officielle EN (exact paths)
             const SHOPIFY_CATEGORY_MAP = {
+                // Vêtements
                 'Vêtements': 'Apparel & Accessories > Clothing',
-                'Tops & T-shirts': 'Apparel & Accessories > Clothing > Shirts & Tops',
+                'Tops & T-shirts': 'Apparel & Accessories > Clothing > Clothing Tops > T-Shirts',
                 'Robes': 'Apparel & Accessories > Clothing > Dresses',
                 'Pantalons & Jeans': 'Apparel & Accessories > Clothing > Pants',
                 'Vestes & Manteaux': 'Apparel & Accessories > Clothing > Outerwear > Coats & Jackets',
-                'Pulls & Gilets': 'Apparel & Accessories > Clothing > Sweaters',
+                'Pulls & Gilets': 'Apparel & Accessories > Clothing > Clothing Tops > Sweaters',
                 'Jupes': 'Apparel & Accessories > Clothing > Skirts',
-                'Bermudas & Shorts': 'Apparel & Accessories > Clothing > Shorts',
-                'Chemisiers & Blouses': 'Apparel & Accessories > Clothing > Shirts & Tops',
-                'Sweats': 'Apparel & Accessories > Clothing > Sweaters',
+                'Bermudas & Shorts': 'Apparel & Accessories > Clothing > Shorts > Bermudas',
+                'Chemisiers & Blouses': 'Apparel & Accessories > Clothing > Clothing Tops > Blouses',
+                'Sweats': 'Apparel & Accessories > Clothing > Clothing Tops > Sweatshirts',
                 'Blazers': 'Apparel & Accessories > Clothing > Outerwear > Coats & Jackets',
+                // Accessoires
                 'Sacs': 'Apparel & Accessories > Handbags, Wallets & Cases > Handbags',
                 'Bijoux': 'Apparel & Accessories > Jewelry',
                 'Bagues': 'Apparel & Accessories > Jewelry > Rings',
@@ -350,7 +352,7 @@
                 'Chapeaux': 'Apparel & Accessories > Clothing Accessories > Hats',
                 'Ceintures': 'Apparel & Accessories > Clothing Accessories > Belts',
                 'Écharpes & Foulards': 'Apparel & Accessories > Clothing Accessories > Scarves & Shawls',
-                'Accessoires': 'Apparel & Accessories',
+                'Accessoires': 'Apparel & Accessories > Clothing Accessories',
             };
 
             const mapToShopifyCategory = (internalCat) => {
