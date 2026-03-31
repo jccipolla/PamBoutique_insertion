@@ -64,7 +64,11 @@
             <img src="https://www.pamofficiel.com/cdn/shop/files/Pam_logo_vecteur_pages-to-jpg-0001.jpg?v=1773326252&width=340" alt="Pam Boutique" className={`${className} object-cover rounded-full shadow-sm bg-white border-2 border-stone-200`} onError={(e) => { e.target.onerror = null; e.target.src = "https://ui-avatars.com/api/?name=Pam+Boutique&background=1c1917&color=facc15&rounded=true"; }} />
         );
 
-        const CATEGORIES_DISPONIBLES = ['Vêtements', 'Vestes & Manteaux', 'Pulls & Gilets', 'Robes', 'Tops & T-shirts', 'Pantalons & Jeans', 'Accessoires'];
+        const CATEGORIES_DISPONIBLES = [
+            'Robes', 'Tops & T-shirts', 'Pantalons & Jeans', 'Vestes & Manteaux',
+            'Pulls & Gilets', 'Jupes', 'Bermudas & Shorts', 'Chemisiers & Blouses',
+            'Sweats', 'Blazers', 'Accessoires', 'Vêtements'
+        ];
         const TAILLES_DISPONIBLES = ['TU', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '34', '36', '38', '40', '42', '44', '46', '48'];
         const COULEURS_DISPONIBLES = ['Beige', 'Noir', 'Blanc', 'Gris', 'Bleu', 'Rouge', 'Rose', 'Vert', 'Jaune', 'Imprimé Léo', 'Camel', 'Kaki', 'Marine', 'Doré', 'Argenté', 'Multicolore', 'Marron', 'Bordeaux'];
 
@@ -320,7 +324,7 @@
             // Vérifie qu'une URL est valide pour Shopify (HTTPS uniquement)
             const isValidShopifyImageUrl = (url) => url && typeof url === 'string' && url.trim().startsWith('https://');
 
-            // Mapping catégories internes → taxonomie Shopify officielle
+            // Mapping catégories internes FR → taxonomie Shopify officielle EN
             const SHOPIFY_CATEGORY_MAP = {
                 'Vêtements': 'Apparel & Accessories > Clothing',
                 'Tops & T-shirts': 'Apparel & Accessories > Clothing > Shirts & Tops',
@@ -328,6 +332,11 @@
                 'Pantalons & Jeans': 'Apparel & Accessories > Clothing > Pants',
                 'Vestes & Manteaux': 'Apparel & Accessories > Clothing > Outerwear > Coats & Jackets',
                 'Pulls & Gilets': 'Apparel & Accessories > Clothing > Sweaters',
+                'Jupes': 'Apparel & Accessories > Clothing > Skirts',
+                'Bermudas & Shorts': 'Apparel & Accessories > Clothing > Shorts',
+                'Chemisiers & Blouses': 'Apparel & Accessories > Clothing > Shirts & Tops',
+                'Sweats': 'Apparel & Accessories > Clothing > Sweaters',
+                'Blazers': 'Apparel & Accessories > Clothing > Outerwear > Coats & Jackets',
                 'Accessoires': 'Apparel & Accessories',
             };
 
