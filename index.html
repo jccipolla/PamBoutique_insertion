@@ -1120,6 +1120,12 @@
                     setFormStatus({ type: 'error', message: 'Sélectionnez au moins une taille et une couleur.' }); return;
                 }
                 setIsSaving(true);
+                // Bloquer la sauvegarde si la photo est encore en base64 (upload ImgBB non terminé)
+                if (formData.internalPhoto && String(formData.internalPhoto).startsWith('data:')) {
+                    setFormStatus({ type: 'error', message: 'Photo en cours d\'upload… Attendez quelques secondes et réessayez.' });
+                    setIsSaving(false);
+                    return;
+                }
                 try {
                     const payloads = [];
                     const sizesToProcess = formData.sizes.length > 0 ? formData.sizes : ['TU'];
