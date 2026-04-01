@@ -1557,45 +1557,6 @@
                                         )}
                                     </div>
 
-                                    {/* SECTION 4: IMAGE PRODUIT (URL) */}
-                                    <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-200">
-                                        <h3 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-2 mb-3 flex items-center justify-between">
-                                            <span>Image Produit (Shopify)</span>
-                                            <a href={DRIVE_FOLDER_URL} target="_blank" rel="noopener noreferrer"
-                                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold transition-colors shadow-sm normal-case tracking-normal">
-                                                <IconFolder className="w-3.5 h-3.5" /> Explorer le Drive <IconExternalLink className="w-3 h-3" />
-                                            </a>
-                                        </h3>
-                                        <p className="text-xs text-stone-500 mb-3">Ouvrez le Drive, clic droit sur une photo → <strong>Copier le lien</strong>, puis collez-le ici.</p>
-                                        <div className="flex flex-col sm:flex-row gap-3 items-start">
-                                            <div className="flex-1 w-full">
-                                                <input type="url" placeholder="Collez le lien Google Drive ici..." value={formData.ImageSrc}
-                                                    onChange={e => {
-                                                        const converted = convertDriveUrl(e.target.value.trim());
-                                                        setFormData(prev => ({...prev, ImageSrc: converted}));
-                                                    }}
-                                                    onPaste={e => {
-                                                        e.preventDefault();
-                                                        const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
-                                                        const converted = convertDriveUrl(pasted);
-                                                        setFormData(prev => ({...prev, ImageSrc: converted}));
-                                                    }}
-                                                    className="w-full px-3 py-2.5 rounded-lg border border-stone-300 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-sm transition-all bg-white" />
-                                                {formData.ImageSrc && formData.ImageSrc.includes('drive.google.com/uc?') && (
-                                                    <p className="text-xs text-green-600 mt-1 font-medium">✓ Lien Drive converti automatiquement</p>
-                                                )}
-                                            </div>
-                                            {formData.ImageSrc && /^https?:\/\//i.test(formData.ImageSrc) && (
-                                                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl border border-stone-200 overflow-hidden shrink-0 shadow-sm bg-white">
-                                                    <img src={formData.ImageSrc} alt="Aperçu Image" className="w-full h-full object-cover" onError={e => { e.target.style.display='none'; }} />
-                                                    <button type="button" onClick={() => setFormData(prev => ({...prev, ImageSrc: ''}))} className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow transition-colors" title="Supprimer">
-                                                        <IconX className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
                                     {/* SECTION 5: PHOTO INTERNE */}
                                     <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-200">
                                         <h3 className="font-bold text-stone-800 text-sm uppercase tracking-wide border-b border-stone-200 pb-2 mb-3">Photo Usine (Interne)</h3>
