@@ -724,28 +724,7 @@
 
             // Migration désactivée — base64 tronqués par Sheets, données irrécupérables
             const migratePhotos = async () => {
-                if (isMigrating) return;
-                const toMigrate = (fileData || []).filter(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:'));
-                if (toMigrate.length === 0) { addLog('Aucune photo base64 à migrer.', 'info'); return; }
-                setIsMigrating(true);
-                let done = 0; let failed = 0;
-                for (let i = 0; i < toMigrate.length; i++) {
-                    const row = toMigrate[i];
-                    setMigrateProgress((i + 1) + '/' + toMigrate.length);
-                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.ID);
-                    if (url) {
-                        const updatedRow = Object.assign({}, row, { 'Photo Interne': url });
-                        try {
-                            await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([updatedRow]) });
-                            done++;
-                        } catch(e) { failed++; }
-                    } else { failed++; }
-                    await new Promise(function(res){ setTimeout(res, 600); });
-                }
-                setMigrateProgress('');
-                setIsMigrating(false);
-                addLog('Migration : ' + done + ' photo(s) migrée(s), ' + failed + ' échec(s).', done > 0 ? 'success' : 'error');
-                if (done > 0) fetchSheetData();
+                addLog('Migration désactivée.', 'error');
             };
 
             const handleExists = useMemo(() => {
