@@ -661,11 +661,9 @@
 
         // Upload base64 vers ImgBB → URL publique HTTPS
         // id : identifiant unique de la ligne (row.ID) pour le cache — obligatoire pour la migration
-        const uploadPhotoToImgbb = async (base64DataUrl, id) => {
-            const cacheKey = id != null
-                ? 'pam_imgbb_id_' + id
-                : 'pam_imgbb_new_' + Date.now(); // nouvelle photo : pas de cache (ID pas encore connu)
-            if (id != null) {
+        const uploadPhotoToImgbb = async (base64DataUrl, cacheId) => {
+            const cacheKey = cacheId ? 'pam_imgbb_handle_' + cacheId : null;
+            if (cacheKey) {
                 const cached = localStorage.getItem(cacheKey);
                 if (cached) return cached;
             }
@@ -677,7 +675,7 @@
                 const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
                 const json = await res.json();
                 if (json.success) {
-                    if (id != null) localStorage.setItem(cacheKey, json.data.url);
+                    if (cacheKey) localStorage.setItem(cacheKey, json.data.url);
                     return json.data.url;
                 }
             } catch {}
@@ -724,7 +722,31 @@
 
             // Migration désactivée — base64 tronqués par Sheets, données irrécupérables
             const migratePhotos = async () => {
-                addLog('Migration désactivée.', 'error');
+                if (isMigrating) return;
+                // Une seule ligne par Handle (la première) a Photo Interne
+                const toMigrate = (fileData || []).filter(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:') && r.Handle);
+                if (toMigrate.length === 0) { addLog('Aucune photo base64 à migrer.', 'info'); return; }
+                setIsMigrating(true);
+                let done = 0; let failed = 0;
+                for (let i = 0; i < toMigrate.length; i++) {
+                    const row = toMigrate[i];
+                    setMigrateProgress((i + 1) + '/' + toMigrate.length);
+                    addLog('Migration ' + (i + 1) + '/' + toMigrate.length + ' : ' + row.Handle, 'info');
+                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.Handle);
+                    if (url) {
+                        const updatedRow = Object.assign({}, row, { 'Photo Interne': url });
+                        try {
+                            await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([updatedRow]) });
+                            addLog('OK : ' + row.Handle + ' → ' + url, 'success');
+                            done++;
+                        } catch(e) { addLog('Erreur écriture : ' + row.Handle, 'error'); failed++; }
+                    } else { addLog('Erreur upload : ' + row.Handle, 'error'); failed++; }
+                    await new Promise(function(res){ setTimeout(res, 800); });
+                }
+                setMigrateProgress('');
+                setIsMigrating(false);
+                addLog('Migration terminée : ' + done + ' OK, ' + failed + ' échec(s).', done > 0 ? 'success' : 'error');
+                if (done > 0) fetchSheetData();
             };
 
             const handleExists = useMemo(() => {
