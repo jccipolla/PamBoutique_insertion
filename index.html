@@ -649,9 +649,23 @@
         // =============================================
         const IMGBB_API_KEY = '9cf1175e218a6b74503cb5e6f1e217ea';
 
+        // Purge les anciennes entrées de cache ImgBB mal construites (clés courtes = collision)
+        (() => {
+            const toDelete = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('pam_imgbb_') && !k.includes('_', 10)) toDelete.push(k);
+            }
+            toDelete.forEach(k => localStorage.removeItem(k));
+        })();
+
         // Upload base64 vers ImgBB → URL publique HTTPS (avec cache localStorage)
         const uploadPhotoToImgbb = async (base64DataUrl) => {
-            const cacheKey = 'pam_imgbb_' + btoa(base64DataUrl.substring(0, 200)).substring(0, 40);
+            // Clé de cache unique : longueur + échantillon milieu + fin (évite la collision sur le header JPEG commun)
+            const len = base64DataUrl.length;
+            const mid = base64DataUrl.substring(Math.floor(len / 2) - 50, Math.floor(len / 2) + 50);
+            const tail = base64DataUrl.substring(len - 100);
+            const cacheKey = 'pam_imgbb_' + len + '_' + btoa(mid + tail).substring(0, 40);
             const cached = localStorage.getItem(cacheKey);
             if (cached) return cached;
             try {
