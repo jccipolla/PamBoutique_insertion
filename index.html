@@ -717,6 +717,11 @@
                     if (Array.isArray(data)) {
                         setFileData(data);
                         addLog(`Connecté : ${data.length} variantes.`, 'success');
+                        // DEBUG: affiche les colonnes contenant "photo" ou "image" dans la 1ère ligne
+                        if (data.length > 0) {
+                            const imageCols = Object.keys(data[0]).filter(k => /image|photo/i.test(k));
+                            if (imageCols.length > 0) addLog(`Colonnes image détectées : ${imageCols.join(' | ')}`, 'info');
+                        }
                     } else if (data && data.error) {
                         addLog(`Erreur script Google : ${data.error}`, 'error');
                     } else {
