@@ -659,15 +659,16 @@
             toDelete.forEach(k => localStorage.removeItem(k));
         })();
 
-        // Upload base64 vers ImgBB → URL publique HTTPS (avec cache localStorage)
-        const uploadPhotoToImgbb = async (base64DataUrl) => {
-            // Clé de cache unique : longueur + échantillon milieu + fin (évite la collision sur le header JPEG commun)
-            const len = base64DataUrl.length;
-            const mid = base64DataUrl.substring(Math.floor(len / 2) - 50, Math.floor(len / 2) + 50);
-            const tail = base64DataUrl.substring(len - 100);
-            const cacheKey = 'pam_imgbb_' + len + '_' + btoa(mid + tail).substring(0, 40);
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) return cached;
+        // Upload base64 vers ImgBB → URL publique HTTPS
+        // id : identifiant unique de la ligne (row.ID) pour le cache — obligatoire pour la migration
+        const uploadPhotoToImgbb = async (base64DataUrl, id) => {
+            const cacheKey = id != null
+                ? 'pam_imgbb_id_' + id
+                : 'pam_imgbb_new_' + Date.now(); // nouvelle photo : pas de cache (ID pas encore connu)
+            if (id != null) {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) return cached;
+            }
             try {
                 const base64 = base64DataUrl.replace(/^data:image\/\w+;base64,/, '');
                 const fd = new FormData();
@@ -675,7 +676,10 @@
                 fd.append('image', base64);
                 const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
                 const json = await res.json();
-                if (json.success) { localStorage.setItem(cacheKey, json.data.url); return json.data.url; }
+                if (json.success) {
+                    if (id != null) localStorage.setItem(cacheKey, json.data.url);
+                    return json.data.url;
+                }
             } catch {}
             return null;
         };
@@ -727,7 +731,7 @@
                 let done = 0; let failed = 0;
                 for (const row of rows) {
                     setMigrateProgress(`${done + failed + 1}/${rows.length}`);
-                    const url = await uploadPhotoToImgbb(row['Photo Interne']);
+                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.ID);
                     if (url) {
                         // Mettre à jour localement
                         setFileData(prev => prev.map(r =>
@@ -789,7 +793,7 @@
                             (async () => {
                                 let done = 0;
                                 for (const row of toMigrate) {
-                                    const url = await uploadPhotoToImgbb(row['Photo Interne']);
+                                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.ID);
                                     if (url) {
                                         setFileData(prev => prev.map(r => r.ID === row.ID ? { ...r, 'Photo Interne': url } : r));
                                         await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([{ ...row, 'Photo Interne': url, _action: 'update' }]) });
@@ -979,7 +983,7 @@
                         setFormData(prev => ({ ...prev, internalPhoto: base64 }));
                         // Uploader vers ImgBB en arrière-plan → remplacer par l'URL
                         addLog('Upload photo vers ImgBB…', 'info');
-                        const url = await uploadPhotoToImgbb(base64);
+                        const url = await uploadPhotoToImgbb(base64, null);
                         if (url) {
                             setFormData(prev => ({ ...prev, internalPhoto: url }));
                             addLog('Photo uploadée : ' + url, 'success');
