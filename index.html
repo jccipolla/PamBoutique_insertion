@@ -767,10 +767,23 @@
                     if (Array.isArray(data)) {
                         setFileData(data);
                         addLog(`Connecté : ${data.length} variantes.`, 'success');
-                        // DEBUG: affiche les colonnes contenant "photo" ou "image" dans la 1ère ligne
-                        if (data.length > 0) {
-                            const imageCols = Object.keys(data[0]).filter(k => /image|photo/i.test(k));
-                            if (imageCols.length > 0) addLog(`Colonnes image détectées : ${imageCols.join(' | ')}`, 'info');
+                        // Synchronisation silencieuse des photos base64 → ImgBB
+                        const toMigrate = data.filter(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:'));
+                        if (toMigrate.length > 0) {
+                            addLog(`Synchro photos : ${toMigrate.length} à uploader…`, 'info');
+                            // Traitement en arrière-plan (sans bloquer l'UI)
+                            (async () => {
+                                let done = 0;
+                                for (const row of toMigrate) {
+                                    const url = await uploadPhotoToImgbb(row['Photo Interne']);
+                                    if (url) {
+                                        setFileData(prev => prev.map(r => r.ID === row.ID ? { ...r, 'Photo Interne': url } : r));
+                                        await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([{ ...row, 'Photo Interne': url, _action: 'update' }]) });
+                                        done++;
+                                    }
+                                }
+                                if (done > 0) addLog(`${done} photo(s) synchronisée(s) vers ImgBB.`, 'success');
+                            })();
                         }
                     } else if (data && data.error) {
                         addLog(`Erreur script Google : ${data.error}`, 'error');
