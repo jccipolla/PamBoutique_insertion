@@ -724,7 +724,28 @@
 
             // Migration désactivée — base64 tronqués par Sheets, données irrécupérables
             const migratePhotos = async () => {
-                addLog('Migration désactivée : les photos base64 stockées dans Sheets sont tronquées et inutilisables. Reprendre les photos directement depuis l\'app.', 'error');
+                if (isMigrating) return;
+                const toMigrate = (fileData || []).filter(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:'));
+                if (toMigrate.length === 0) { addLog('Aucune photo base64 à migrer.', 'info'); return; }
+                setIsMigrating(true);
+                let done = 0; let failed = 0;
+                for (let i = 0; i < toMigrate.length; i++) {
+                    const row = toMigrate[i];
+                    setMigrateProgress((i + 1) + '/' + toMigrate.length);
+                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.ID);
+                    if (url) {
+                        const updatedRow = Object.assign({}, row, { 'Photo Interne': url });
+                        try {
+                            await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([updatedRow]) });
+                            done++;
+                        } catch(e) { failed++; }
+                    } else { failed++; }
+                    await new Promise(function(res){ setTimeout(res, 600); });
+                }
+                setMigrateProgress('');
+                setIsMigrating(false);
+                addLog('Migration : ' + done + ' photo(s) migrée(s), ' + failed + ' échec(s).', done > 0 ? 'success' : 'error');
+                if (done > 0) fetchSheetData();
             };
 
             const handleExists = useMemo(() => {
@@ -1328,7 +1349,15 @@
                                 {isLoading ? <div className="w-4 h-4 rounded-full border-2 border-stone-400 border-t-transparent animate-spin"></div> : <IconRefresh className="w-4 h-4"/>}
                                 <span className="hidden sm:inline">Actualiser</span>
                             </button>
-
+                            {(fileData || []).some(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:')) && (
+                                <button onClick={migratePhotos} disabled={isMigrating}
+                                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-colors ${isMigrating ? 'bg-amber-100 text-amber-500 cursor-wait' : 'bg-amber-400 hover:bg-amber-500 text-white'}`}>
+                                    {isMigrating
+                                        ? <><div className="w-4 h-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></div> <span>{migrateProgress}</span></>
+                                        : <><IconImage className="w-4 h-4"/> <span className="hidden sm:inline">Migrer photos</span></>
+                                    }
+                                </button>
+                            )}
                         </div>
                     </header>
 
