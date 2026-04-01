@@ -330,7 +330,7 @@
                         <div class="print-label-title">${lbl.title || 'PAM BOUTIQUE'}</div>
                         <div class="print-label-info">${lbl.size} | ${lbl.color}</div>
                         ${lbl.ean
-                            ? `<img class="print-label-barcode" src="https://bwipjs-api.metafloor.com/?bcid=ean13&text=${lbl.ean}&scale=2&height=8&textxalign=center&textsize=8" alt="${lbl.ean}" />`
+                            ? `<img class="print-label-barcode" src="https://bwipjs-api.metafloor.com/?bcid=ean13&text=${lbl.ean}&scale=2&height=8&textxalign=center&textsize=8" />`
                             : '<div class="no-barcode">SANS EAN</div>'
                         }
                         <div class="print-label-price">${lbl.price ? lbl.price + ' €' : ''}</div>
@@ -469,6 +469,37 @@
                 showToast(`CSV exporté : ${list.length} produits, ${totalVar} variantes`);
             };
 
+            const exportPhotosCSV = () => {
+                const list = getTargetProducts();
+                if (!list.length) { showToast('Aucun produit à exporter'); return; }
+                const HEADERS = ['Handle', 'Image Src', 'Image Position'];
+                const rows = [HEADERS];
+                list.forEach(p => {
+                    const rawImageSrc = p['Image Src'] ? convertDriveUrl(p['Image Src'].trim()) : '';
+                    const rawPhotoInterne = (p['Photo Interne'] && !p['Photo Interne'].startsWith('data:'))
+                        ? convertDriveUrl(p['Photo Interne'].trim()) : '';
+                    const productImage = isValidShopifyImageUrl(rawImageSrc) ? rawImageSrc
+                        : isValidShopifyImageUrl(rawPhotoInterne) ? rawPhotoInterne : '';
+                    if (productImage) rows.push([p.Handle, productImage, '1']);
+                });
+                if (rows.length === 1) { showToast('Aucune photo valide à exporter'); return; }
+                const escape = (cell) => {
+                    const s = String(cell == null ? '' : cell).replace(/"/g, '""');
+                    return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s + '"' : s;
+                };
+                const csv = rows.map(r => r.map(escape).join(',')).join('\r\n');
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'pam_photos_update_' + formatDateInput(new Date()) + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('CSV photos exporté : ' + (rows.length - 1) + ' produits');
+            };
+
             const weekLabel = (() => {
                 const m = getMondayOfCurrentWeek();
                 return `Lun. ${m.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} – Auj.`;
@@ -543,6 +574,11 @@
                                     className="flex items-center gap-1.5 text-xs px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 border border-green-200 rounded-lg font-bold transition-colors">
                                     <IconDownload className="w-3.5 h-3.5" />
                                     {'CSV Shopify ' + (selected.size > 0 ? '(' + selected.size + ')' : 'tout')}
+                                </button>
+                                <button onClick={exportPhotosCSV}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 rounded-lg font-bold transition-colors">
+                                    <IconImage className="w-3.5 h-3.5" />
+                                    {'MAJ photos ' + (selected.size > 0 ? '(' + selected.size + ')' : 'tout')}
                                 </button>
                             </div>
                         </div>
@@ -651,12 +687,7 @@
 
         // Purge les anciennes entrées de cache ImgBB mal construites (clés courtes = collision)
         (() => {
-            const toDelete = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const k = localStorage.key(i);
-                if (k && k.startsWith('pam_imgbb_') && !k.includes('_', 10)) toDelete.push(k);
-            }
-            toDelete.forEach(k => localStorage.removeItem(k));
+            Object.keys(localStorage).filter(k => k.startsWith('pam_imgbb')).forEach(k => localStorage.removeItem(k))
         })();
 
         // Upload base64 vers ImgBB → URL publique HTTPS
@@ -1472,7 +1503,7 @@
                                                 ))}
                                                 <div className="flex items-center gap-1 ml-1 sm:ml-2">
                                                     <input type="text" value={customCatInput} onChange={(e) => setCustomCatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomCat(); } }} placeholder="Autre cat..." className="w-24 h-8 px-2 text-xs border border-amber-300 bg-amber-50 text-amber-900 rounded focus:ring-2 focus:ring-amber-500 outline-none" />
-                                                    <button type="button" onClick={handleAddCustomCat} className="h-8 px-2 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded transition-colors flex items-center justify-center font-bold" title="Ajouter catégorie (Hors standard)"><IconPlus className="w-3 h-3" /></button>
+                                                    <button type="button" onClick={handleAddCustomCat} className="h-8 px-2 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg transition-colors flex items-center justify-center font-bold" title="Ajouter catégorie (Hors standard)"><IconPlus className="w-3 h-3" /></button>
                                                 </div>
                                             </div>
                                         </div>
@@ -1702,7 +1733,10 @@
                                                                 <div class="print-label">
                                                                     <div class="print-label-title">${lbl.title || 'PAM BOUTIQUE'}</div>
                                                                     <div class="print-label-info">${lbl.size} | ${lbl.color}</div>
-                                                                    ${lbl.ean ? `<img class="print-label-barcode" src="https://bwipjs-api.metafloor.com/?bcid=ean13&text=${lbl.ean}&scale=2&height=5&textxalign=center&textsize=8" />` : '<div class="no-barcode">SANS EAN</div>'}
+                                                                    ${lbl.ean
+                                                                        ? `<img class="print-label-barcode" src="https://bwipjs-api.metafloor.com/?bcid=ean13&text=${lbl.ean}&scale=2&height=5&textxalign=center&textsize=8" />`
+                                                                        : '<div class="no-barcode">SANS EAN</div>'
+                                                                    }
                                                                     <div class="print-label-price">${lbl.price ? lbl.price + ' €' : ''}</div>
                                                                 </div>
                                                             `).join('');
@@ -1712,7 +1746,7 @@
                                                     disabled={totalStock === 0}
                                                     className="w-full px-4 py-3 sm:py-4 text-white bg-stone-900 hover:bg-black rounded-xl font-bold shadow-md transition-colors flex justify-center items-center gap-2 disabled:opacity-50 text-sm sm:text-base"
                                                 >
-                                                    <IconPrinter className="w-5 h-5"/> Imprimer {totalStock} étiquettes
+                                                    <IconPrinter className="w-5 h-5" /> Imprimer {totalStock} étiquettes
                                                 </button>
                                                 <div className="flex justify-center mt-3">
                                                     <button onClick={confirmSearch} className="text-sm text-stone-500 hover:text-stone-900 font-bold underline bg-stone-100 px-4 py-2 rounded-lg transition-colors">✏️ Éditer la fiche (Prix, Tailles, EAN, Stock...)</button>
