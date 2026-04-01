@@ -409,10 +409,14 @@
                 list.forEach(p => {
                     const allSizes = [...new Set((p.variants || []).map(v => v.size))];
                     const allColors = [...new Set((p.variants || []).map(v => v.color))];
-                    // Photo : uniquement les URLs HTTPS valides, sinon placeholder
-                    const productImage = isValidShopifyImageUrl(p['Image Src']) 
-                        ? p['Image Src'].trim()
-                        : PLACEHOLDER_IMG_URL;
+                    // Photo : priorité Image Src (URL Drive convertie), fallback Photo Interne si HTTPS, sinon placeholder
+                    const rawImageSrc = p['Image Src'] ? convertDriveUrl(p['Image Src'].trim()) : '';
+                    const rawPhotoInterne = p['Photo Interne'] ? convertDriveUrl(p['Photo Interne'].trim()) : '';
+                    const productImage = isValidShopifyImageUrl(rawImageSrc)
+                        ? rawImageSrc
+                        : isValidShopifyImageUrl(rawPhotoInterne)
+                            ? rawPhotoInterne
+                            : PLACEHOLDER_IMG_URL;
                     let isFirst = true;
                     (p.variants || []).forEach(v => {
                         const row = [
@@ -1110,7 +1114,7 @@
                                 'Variant Inventory Qty': formData.quantities[key] || '0',
                                 'Date Ajout': isFirstRow ? dateAjout : '',  // ← CHAMP CLÉ pour le rapport hebdomadaire
                                 'Opérateur': userName,
-                                'Photo Interne': isFirstRow ? formData.internalPhoto : ''
+                                'Photo Interne': isFirstRow ? (formData.internalPhoto || formData.ImageSrc || '') : ''
                             });
                             isFirstRow = false;
                         });
