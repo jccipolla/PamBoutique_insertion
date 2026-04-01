@@ -472,7 +472,7 @@
             const exportPhotosCSV = () => {
                 const list = getTargetProducts();
                 if (!list.length) { showToast('Aucun produit à exporter'); return; }
-                const HEADERS = ['Handle', 'Image Src', 'Image Position'];
+                const HEADERS = ['Handle', 'Title', 'Image Src', 'Image Position'];
                 const rows = [HEADERS];
                 list.forEach(p => {
                     const rawImageSrc = p['Image Src'] ? convertDriveUrl(p['Image Src'].trim()) : '';
@@ -480,7 +480,7 @@
                         ? convertDriveUrl(p['Photo Interne'].trim()) : '';
                     const productImage = isValidShopifyImageUrl(rawImageSrc) ? rawImageSrc
                         : isValidShopifyImageUrl(rawPhotoInterne) ? rawPhotoInterne : '';
-                    if (productImage) rows.push([p.Handle, productImage, '1']);
+                    if (productImage) rows.push([p.Handle, p.Title || '', productImage, '1']);
                 });
                 if (rows.length === 1) { showToast('Aucune photo valide à exporter'); return; }
                 const escape = (cell) => {
