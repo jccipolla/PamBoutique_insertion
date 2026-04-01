@@ -472,7 +472,7 @@
             const exportPhotosCSV = () => {
                 const list = getTargetProducts();
                 if (!list.length) { showToast('Aucun produit à exporter'); return; }
-                const HEADERS = ['Handle', 'Title', 'Option1 Name', 'Option1 Value', 'Image Src', 'Image Position'];
+                const HEADERS = ['Handle', 'Title', 'Option1 Name', 'Option1 Value', 'Image Src', 'Image Position', 'Status'];
                 const rows = [HEADERS];
                 list.forEach(p => {
                     const rawImageSrc = p['Image Src'] ? convertDriveUrl(p['Image Src'].trim()) : '';
@@ -483,7 +483,7 @@
                     if (productImage) {
                         const firstVariant = (p.variants || [])[0];
                         const opt1Val = firstVariant ? firstVariant.size : 'TU';
-                        rows.push([p.Handle, p.Title || '', 'Taille', opt1Val, productImage, '1']);
+                        rows.push([p.Handle, p.Title || '', 'Taille', opt1Val, productImage, '1', 'draft']);
                     }
                 });
                 if (rows.length === 1) { showToast('Aucune photo valide à exporter'); return; }
