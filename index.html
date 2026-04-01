@@ -722,32 +722,9 @@
                 setLogs(prev => [{ id: Date.now(), message, type, time: new Date().toLocaleTimeString() }, ...prev]);
             };
 
-            // Migration : convertit tous les base64 de Photo Interne en URLs ImgBB
+            // Migration désactivée — base64 tronqués par Sheets, données irrécupérables
             const migratePhotos = async () => {
-                const rows = (fileData || []).filter(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:'));
-                if (!rows.length) { addLog('Aucune photo base64 à migrer.', 'info'); return; }
-                setIsMigrating(true);
-                addLog(`Migration : ${rows.length} photos à uploader…`, 'info');
-                let done = 0; let failed = 0;
-                for (const row of rows) {
-                    setMigrateProgress(`${done + failed + 1}/${rows.length}`);
-                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.ID);
-                    if (url) {
-                        // Mettre à jour localement
-                        setFileData(prev => prev.map(r =>
-                            r.ID === row.ID ? { ...r, 'Photo Interne': url } : r
-                        ));
-                        // Envoyer la mise à jour au sheet
-                        const updated = { ...row, 'Photo Interne': url, _action: 'update' };
-                        await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([updated]) });
-                        done++;
-                    } else {
-                        failed++;
-                    }
-                }
-                setIsMigrating(false);
-                setMigrateProgress('');
-                addLog(`Migration terminée : ${done} photos uploadées, ${failed} échecs.`, done > 0 ? 'success' : 'error');
+                addLog('Migration désactivée : les photos base64 stockées dans Sheets sont tronquées et inutilisables. Reprendre les photos directement depuis l\'app.', 'error');
             };
 
             const handleExists = useMemo(() => {
@@ -785,24 +762,6 @@
                     if (Array.isArray(data)) {
                         setFileData(data);
                         addLog(`Connecté : ${data.length} variantes.`, 'success');
-                        // Synchronisation silencieuse des photos base64 → ImgBB
-                        const toMigrate = data.filter(r => r['Photo Interne'] && String(r['Photo Interne']).startsWith('data:'));
-                        if (toMigrate.length > 0) {
-                            addLog(`Synchro photos : ${toMigrate.length} à uploader…`, 'info');
-                            // Traitement en arrière-plan (sans bloquer l'UI)
-                            (async () => {
-                                let done = 0;
-                                for (const row of toMigrate) {
-                                    const url = await uploadPhotoToImgbb(row['Photo Interne'], row.ID);
-                                    if (url) {
-                                        setFileData(prev => prev.map(r => r.ID === row.ID ? { ...r, 'Photo Interne': url } : r));
-                                        await fetch(webhookUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify([{ ...row, 'Photo Interne': url, _action: 'update' }]) });
-                                        done++;
-                                    }
-                                }
-                                if (done > 0) addLog(`${done} photo(s) synchronisée(s) vers ImgBB.`, 'success');
-                            })();
-                        }
                     } else if (data && data.error) {
                         addLog(`Erreur script Google : ${data.error}`, 'error');
                     } else {
