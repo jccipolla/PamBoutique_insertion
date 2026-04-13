@@ -1097,7 +1097,7 @@
             const handleReset = () => {
                 setFormData({ Handle: '', Title: '', Body: '', Type: '', Tags: '', 'Variant SKU': '', 'Variant Price': '', 'Variant Compare At Price': '', CostPerItem: '', Grams: '', ImageSrc: '', category: [], colors: [], sizes: [], quantities: {}, eans: {}, internalPhoto: '', dateAjout: '' });
                 setDynamicSizes([]); setDynamicCats([]); setCustomSizeInput(''); setCustomCatInput(''); setSearchQuery('');
-                setMode('new'); setFormStatus({ type: '', message: '' });
+                setMode('new'); setFormStatus({ type: '', message: '' }); setCountdown(null);
             };
 
             const handleCreateDirect = () => {
