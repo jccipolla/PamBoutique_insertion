@@ -739,6 +739,7 @@
             const [searchResults, setSearchResults] = useState([]);
             const [selectedVariantsGroup, setSelectedVariantsGroup] = useState([]);
             const [editSource, setEditSource] = useState(null); // 'rapport' | null
+            const [countdown, setCountdown] = useState(null); // Décompte après création initiale
 
             // Formulaire
             const [formData, setFormData] = useState({
@@ -1262,12 +1263,28 @@
                         return newFileData;
                     });
 
+                    // Décompte après création initiale (mode === 'new' && pas handleExists)
+                    if (mode === 'new' && !handleExists) {
+                        setCountdown(3);
+                    }
+
                 } catch (error) {
                     addLog(`Erreur de sauvegarde`, 'error');
                     setFormStatus({ type: 'error', message: 'Impossible de joindre Google Sheets.' });
                 }
                 setIsSaving(false);
             };
+
+            // Gestion du décompte après création
+            useEffect(() => {
+                if (countdown === null) return;
+                if (countdown === 0) {
+                    handleReset();
+                    return;
+                }
+                const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+                return () => clearTimeout(timer);
+            }, [countdown]);
 
             const handleGenerateEANInModal = async () => {
                 if (!selectedVariantsGroup || selectedVariantsGroup.length === 0) return;
@@ -1637,9 +1654,9 @@
 
                                     {/* BOUTON SAUVEGARDER */}
                                     <div className="pt-2 pb-6">
-                                        <button type="submit" disabled={isSaving} className={`w-full py-4 px-4 ${handleExists && mode === 'new' ? 'bg-amber-500 hover:bg-amber-600 text-stone-900' : 'bg-stone-900 hover:bg-stone-800 text-white'} rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-3 disabled:opacity-70 uppercase tracking-widest text-sm`}>
+                                        <button type="submit" disabled={isSaving} className={`w-full py-4 px-4 ${mode === 'edit' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white'} rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-3 disabled:opacity-70 uppercase tracking-widest text-sm`}>
                                             {isSaving ? <div className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin"></div> : (mode === 'edit' ? <IconSave /> : <IconPlus />)}
-                                            {isSaving ? 'Envoi...' : (handleExists && mode === 'new' ? 'ATTENTION : Mettre à jour' : 'Sauvegarder Fiche')}
+                                            {isSaving ? 'Envoi...' : (mode === 'edit' ? 'Enregistrer les modifications' : 'Sauvegarder Fiche')}
                                         </button>
                                         {formStatus.message && <p className="text-center text-sm font-bold mt-3 text-stone-600">{formStatus.message}</p>}
                                     </div>
@@ -1668,6 +1685,17 @@
                             </div>
                         </div>
                     </div>
+
+                    {/* DÉCOMPTE POST-CRÉATION */}
+                    {countdown !== null && (
+                        <div className="fixed inset-0 bg-stone-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl shadow-2xl p-12 text-center max-w-sm">
+                                <p className="text-stone-600 text-lg mb-8">Fiche créée avec succès !</p>
+                                <div className="text-8xl font-bold text-green-600 mb-8 animate-pulse">{countdown}</div>
+                                <p className="text-stone-500">Retour à l'écran d'accueil…</p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* MODALE SCAN */}
                     {showModal && (() => {
