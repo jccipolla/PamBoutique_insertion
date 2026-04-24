@@ -429,9 +429,9 @@
                             isFirst ? (p.Type || p['Product Category'] || '') : '',
                             isFirst ? (p.Tags || '') : '',
                             isFirst ? 'FALSE' : '',
-                            'Taille', v.size, 'product.metafields.shopify.size',
+                            'Taille', v.size === 'TU' ? 'taille-unique' : v.size, 'product.metafields.shopify.size',
                             'Couleur', v.color, 'product.metafields.shopify.color-pattern',
-                            isFirst ? allSizes.join('; ') : '',
+                            isFirst ? allSizes.map(s => s === 'TU' ? 'taille-unique' : s).join('; ') : '',
                             isFirst ? allColors.join('; ') : '',
                             v.sku || '',
                             v.ean || '',
@@ -502,6 +502,40 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 showToast('CSV photos exporté : ' + (rows.length - 1) + ' produits');
+            };
+
+            const exportLightspeedCSV = () => {
+                const list = getTargetProducts();
+                if (!list.length) { showToast('Aucun produit à exporter'); return; }
+                // Format officiel Lightspeed X-Series stock import : handle, sku, supply_price, quantity
+                const HEADERS = ['handle', 'sku', 'supply_price', 'quantity'];
+                const rows = [HEADERS];
+                list.forEach(p => {
+                    (p.variants || []).forEach(v => {
+                        rows.push([
+                            p.Handle || '',
+                            v.sku || '',
+                            p['Cost per item'] || '',
+                            v.qty || '0',
+                        ]);
+                    });
+                });
+                const escape = (cell) => {
+                    const s = String(cell == null ? '' : cell).replace(/"/g, '""');
+                    return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s + '"' : s;
+                };
+                const csv = rows.map(r => r.map(escape).join(',')).join('\r\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'pam_lightspeed_stock_' + formatDateInput(new Date()) + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                const totalVar = list.reduce((s, p) => s + (p.variants || []).length, 0);
+                showToast('CSV Lightspeed exporté : ' + list.length + ' produits, ' + totalVar + ' variantes');
             };
 
             const weekLabel = (() => {
@@ -583,6 +617,11 @@
                                     className="flex items-center gap-1.5 text-xs px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 rounded-lg font-bold transition-colors">
                                     <IconImage className="w-3.5 h-3.5" />
                                     {'MAJ photos ' + (selected.size > 0 ? '(' + selected.size + ')' : 'tout')}
+                                </button>
+                                <button onClick={exportLightspeedCSV}
+                                    className="flex items-center gap-1.5 text-xs px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-200 rounded-lg font-bold transition-colors">
+                                    <IconDownload className="w-3.5 h-3.5" />
+                                    {'Lightspeed ' + (selected.size > 0 ? '(' + selected.size + ')' : 'tout')}
                                 </button>
                             </div>
                         </div>
@@ -1499,9 +1538,6 @@
                                         <div>
                                             <div className="flex justify-between items-center mb-1 mt-2">
                                                 <label className="block text-xs sm:text-sm font-medium text-stone-700">Description (HTML autorisé)</label>
-                                                <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingAI} className="text-xs flex items-center gap-1 text-purple-700 hover:text-purple-900 bg-purple-100 px-2 py-1 rounded border border-purple-300 transition-colors font-bold shadow-sm">
-                                                    {isGeneratingAI ? <div className="w-3 h-3 rounded-full border-2 border-purple-600 border-t-transparent animate-spin"></div> : <IconSparkles className="w-3 h-3"/>} Rédiger IA
-                                                </button>
                                             </div>
                                             <textarea name="Body" value={formData.Body} onChange={handleInputChange} rows="3" placeholder="<p>Une magnifique veste...</p>" className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-stone-900 outline-none custom-scrollbar text-sm bg-white"></textarea>
                                         </div>
@@ -1649,6 +1685,20 @@
                                                     </button>
                                                 </div>
                                             )}
+                                        </div>
+                                    </div>
+
+                                    {/* BOUTON IA */}
+                                    <div className="bg-purple-50 p-4 sm:p-5 rounded-xl border border-purple-200">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
+                                                <h3 className="font-bold text-purple-800 text-sm uppercase tracking-wide flex items-center gap-2"><IconSparkles className="w-4 h-4"/> Génération IA</h3>
+                                                <p className="text-xs text-purple-600 mt-1">Génère une description complète à partir des tags, couleurs, tailles et prix renseignés.</p>
+                                            </div>
+                                            <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingAI} className="flex items-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-sm transition-colors shadow-md disabled:opacity-50 w-full sm:w-auto justify-center">
+                                                {isGeneratingAI ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div> : <IconSparkles className="w-4 h-4"/>}
+                                                {isGeneratingAI ? 'Génération…' : 'Générer la description avec l\'IA'}
+                                            </button>
                                         </div>
                                     </div>
 
