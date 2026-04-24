@@ -482,7 +482,7 @@
                         : isValidShopifyImageUrl(rawPhotoInterne) ? rawPhotoInterne : '';
                     if (productImage) {
                         const firstVariant = (p.variants || [])[0];
-                        const opt1Val = firstVariant ? firstVariant.size : 'TU';
+                        const opt1Val = firstVariant ? (firstVariant.size === 'TU' ? 'taille-unique' : firstVariant.size) : 'taille-unique';
                         rows.push([p.Handle, p.Title || '', 'Taille', opt1Val, productImage, '1', 'draft']);
                     }
                 });
@@ -507,16 +507,19 @@
             const exportLightspeedCSV = () => {
                 const list = getTargetProducts();
                 if (!list.length) { showToast('Aucun produit à exporter'); return; }
-                // Format officiel Lightspeed X-Series stock import : handle, sku, supply_price, quantity
-                const HEADERS = ['handle', 'sku', 'supply_price', 'quantity'];
+                // Format officiel Lightspeed X-Series stock import : handle, sku, supply_price, quantity, barcode
+                const HEADERS = ['handle', 'sku', 'supply_price', 'quantity', 'barcode'];
                 const rows = [HEADERS];
+                let missingEan = 0;
                 list.forEach(p => {
                     (p.variants || []).forEach(v => {
+                        if (!v.ean) missingEan++;
                         rows.push([
                             p.Handle || '',
                             v.sku || '',
                             p['Cost per item'] || '',
                             v.qty || '0',
+                            v.ean || '',
                         ]);
                     });
                 });
@@ -535,7 +538,11 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 const totalVar = list.reduce((s, p) => s + (p.variants || []).length, 0);
-                showToast('CSV Lightspeed exporté : ' + list.length + ' produits, ' + totalVar + ' variantes');
+                if (missingEan > 0) {
+                    showToast('⚠️ ' + missingEan + ' variante(s) sans code barre dans l\'export Lightspeed');
+                } else {
+                    showToast('CSV Lightspeed exporté : ' + list.length + ' produits, ' + totalVar + ' variantes — tous EANs présents ✓');
+                }
             };
 
             const weekLabel = (() => {
